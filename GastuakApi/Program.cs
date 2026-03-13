@@ -19,7 +19,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddControllers();
 
-// Configuración de Swagger con múltiples documentos
+// ConfiguraciÃ³n de Swagger con mÃºltiples documentos
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("inbentarioa", new OpenApiInfo

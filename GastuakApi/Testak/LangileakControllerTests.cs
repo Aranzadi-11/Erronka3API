@@ -198,7 +198,7 @@ namespace JatetxeaApi.Testak.Controllerrak
                 Izena = "Langile",
                 Erabiltzailea = "user",
                 Pasahitza = "pass",
-                Aktibo = "Bai", 
+                Aktibo = "Bai",
                 ErregistroData = DateTime.Now,
                 RolaId = 1
             };
@@ -221,7 +221,7 @@ namespace JatetxeaApi.Testak.Controllerrak
                 Izena = "Langile",
                 Erabiltzailea = "user",
                 Pasahitza = "pass",
-                Aktibo = "Bai",   
+                Aktibo = "Bai",
                 ErregistroData = DateTime.Now,
                 RolaId = 1
             };
@@ -262,7 +262,7 @@ namespace JatetxeaApi.Testak.Controllerrak
                 Izena = "LangileUpdated",
                 Erabiltzailea = "userUpdated",
                 Pasahitza = "passUpdated",
-                Aktibo = "Ez",        
+                Aktibo = "Ez",
                 ErregistroData = DateTime.Now,
                 RolaId = 2
             };

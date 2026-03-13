@@ -16,36 +16,40 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Platerak item)
+        public PlaterakRepository()
+        {
+        }
+
+        public virtual void Add(Platerak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Platerak? Get(int id)
+        public virtual Platerak? Get(int id)
         {
             return _session.Query<Platerak>().SingleOrDefault(x => x.Id == id);
         }
 
-        public Platerak? Get(String izena)
+        public virtual Platerak? Get(String izena)
         {
             return _session.Query<Platerak>().SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<Platerak> GetAll()
+        public virtual IList<Platerak> GetAll()
         {
             return _session.Query<Platerak>().ToList();
         }
 
-        public void Update(Platerak item)
+        public virtual void Update(Platerak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Platerak item)
+        public virtual void Delete(Platerak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

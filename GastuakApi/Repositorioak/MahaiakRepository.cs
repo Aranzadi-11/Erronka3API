@@ -16,31 +16,35 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Mahaiak item)
+        public MahaiakRepository()
+        {
+        }  
+
+        public virtual void Add(Mahaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Mahaiak? Get(int mahaiazbk)
+        public virtual Mahaiak? Get(int mahaiazbk)
         {
             return _session.Query<Mahaiak>().SingleOrDefault(x => x.MahaiaZbk == mahaiazbk);
         }
 
-        public IList<Mahaiak> GetAll()
+        public virtual IList<Mahaiak> GetAll()
         {
             return _session.Query<Mahaiak>().ToList();
         }
 
-        public void Update(Mahaiak item)
+        public virtual void Update(Mahaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Mahaiak item)
+        public virtual void Delete(Mahaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

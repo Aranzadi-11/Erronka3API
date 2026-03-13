@@ -16,36 +16,40 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Langileak item)
+        public LangileakRepository()
+        {
+        }
+
+        public virtual void Add(Langileak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Langileak? Get(int id)
+        public virtual Langileak? Get(int id)
         {
             return _session.Query<Langileak>().SingleOrDefault(x => x.Id == id);
         }
 
-        public Langileak? Get(string izena)
+        public virtual Langileak? Get(string izena)
         {
             return _session.Query<Langileak>().SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<Langileak> GetAll()
+        public virtual IList<Langileak> GetAll()
         {
             return _session.Query<Langileak>().ToList();
         }
 
-        public void Update(Langileak item)
+        public virtual void Update(Langileak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Langileak item)
+        public virtual void Delete(Langileak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

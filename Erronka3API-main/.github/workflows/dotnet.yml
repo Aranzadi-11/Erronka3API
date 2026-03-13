@@ -1,0 +1,36 @@
+name: .NET CI
+
+# 1. Ekintza abiaraziko duten gertaerak (Push eta Pull Request "main" adarrean)
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    # 2. Kodea exekutatuko den ingurunea (Ubuntu azkarra eta merke/doakoa da)
+    runs-on: ubuntu-latest
+
+    steps:
+    # 3. Biltegiko kodea deskargatu makina birtualera
+    - name: Kodea eskuratu (checkout)
+      uses: actions/checkout@v4
+
+    # 4. Konpilatzeko behar den .NET SDK instalatu (doitu bertsioa .NET 6, 7 edo 8 baduzu)
+    - name: .NET konfiguratu
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x   # Aldatu behar izanez gero, adibidez 6.0.x edo 7.0.x
+
+    # 5. Dependendziak berreskuratu (NuGet paketeak)
+    - name: Dependendziak leheneratu (restore)
+      run: dotnet restore
+
+    # 6. Proiektua konpilatu, berriro leheneratu gabe
+    - name: Konpilatu (build)
+      run: dotnet build --no-restore --configuration Release
+
+    # 7. Unitate-probak exekutatu (Tests karpetan badaude)
+    - name: Probak exekutatu
+      run: dotnet test --no-build --verbosity normal --configuration Release

@@ -16,12 +16,16 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        private bool TransakzioaAktibo()
+        public ZerbitzuakRepository()
+        {
+        }
+
+        public virtual bool TransakzioaAktibo()
         {
             return _session.Transaction != null && _session.Transaction.IsActive;
         }
 
-        public void Add(Zerbitzuak item)
+        public virtual void Add(Zerbitzuak item)
         {
             if (TransakzioaAktibo())
             {
@@ -34,24 +38,24 @@ namespace JatetxeaApi.Repositorioak
             tx.Commit();
         }
 
-        public Zerbitzuak? Get(int id)
+        public virtual Zerbitzuak? Get(int id)
         {
             return _session.Query<Zerbitzuak>().SingleOrDefault(x => x.Id == id);
         }
 
-        public IList<Zerbitzuak> GetAll()
+        public virtual IList<Zerbitzuak> GetAll()
         {
             return _session.Query<Zerbitzuak>().ToList();
         }
 
-        public IList<Zerbitzuak> LortuErreserbaIdz(int erreserbaId)
+        public virtual IList<Zerbitzuak> LortuErreserbaIdz(int erreserbaId)
         {
             return _session.Query<Zerbitzuak>()
                 .Where(z => z.ErreserbaId.HasValue && z.ErreserbaId.Value == erreserbaId)
                 .ToList();
         }
 
-        public int ErreserbaLoturaKendu(int erreserbaId)
+        public virtual int ErreserbaLoturaKendu(int erreserbaId)
         {
             if (TransakzioaAktibo())
             {
@@ -68,7 +72,7 @@ namespace JatetxeaApi.Repositorioak
             return kop;
         }
 
-        public void Update(Zerbitzuak item)
+        public virtual void Update(Zerbitzuak item)
         {
             if (TransakzioaAktibo())
             {
@@ -81,7 +85,7 @@ namespace JatetxeaApi.Repositorioak
             tx.Commit();
         }
 
-        public void Delete(Zerbitzuak item)
+        public virtual void Delete(Zerbitzuak item)
         {
             if (TransakzioaAktibo())
             {

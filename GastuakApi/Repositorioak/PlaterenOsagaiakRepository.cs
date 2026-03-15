@@ -17,14 +17,17 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(PlaterenOsagaiak item)
+        public PlaterenOsagaiakRepository()
+        {
+        }
+        public virtual void Add(PlaterenOsagaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public PlaterenOsagaiak? Get(int plateraId, int inbentarioaId)
+        public virtual PlaterenOsagaiak? Get(int plateraId, int inbentarioaId)
         {
             return _session.Query<PlaterenOsagaiak>()
                 .SingleOrDefault(x =>
@@ -32,19 +35,19 @@ namespace JatetxeaApi.Repositorioak
                     x.InbentarioaId == inbentarioaId);
         }
 
-        public IList<PlaterenOsagaiak> GetAll()
+        public virtual IList<PlaterenOsagaiak> GetAll()
         {
             return _session.Query<PlaterenOsagaiak>().ToList();
         }
 
-        public void Update(PlaterenOsagaiak item)
+        public virtual void Update(PlaterenOsagaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(PlaterenOsagaiak item)
+        public virtual void Delete(PlaterenOsagaiak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

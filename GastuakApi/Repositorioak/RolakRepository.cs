@@ -16,37 +16,41 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Rolak item)
+        public RolakRepository()
+        {
+        }
+
+        public virtual void Add(Rolak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Rolak? Get(int id)
+        public virtual Rolak? Get(int id)
         {
             return _session.Query<Rolak>().SingleOrDefault(x => x.Id == id);
         }
 
-        public Rolak? Get(string izena)
+        public virtual Rolak? Get(string izena)
         {
             return _session.Query<Rolak>().SingleOrDefault(r => r.Izena == izena);
         }
 
 
-        public IList<Rolak> GetAll()
+        public virtual IList<Rolak> GetAll()
         {
             return _session.Query<Rolak>().ToList();
         }
 
-        public void Update(Rolak item)
+        public virtual void Update(Rolak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Rolak item)
+        public virtual void Delete(Rolak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

@@ -1,5 +1,6 @@
 ﻿using JatetxeaApi.Modeloak;
 using NHibernate;
+using System;
 using System.Linq;
 using System.Collections.Generic;
 using NHSession = NHibernate.ISession;
@@ -16,38 +17,38 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Inbentarioa item)
+        public virtual void Add(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Inbentarioa? Get(int id)
+        public virtual Inbentarioa? Get(int id)
         {
             return _session.Query<Inbentarioa>()
                 .SingleOrDefault(x => x.Id == id);
         }
 
-        public Inbentarioa? Get(String izena)
+        public virtual Inbentarioa? Get(string izena)
         {
             return _session.Query<Inbentarioa>()
                 .SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<Inbentarioa> GetAll()
+        public virtual IList<Inbentarioa> GetAll()
         {
             return _session.Query<Inbentarioa>().ToList();
         }
 
-        public void Update(Inbentarioa item)
+        public virtual void Update(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Inbentarioa item)
+        public virtual void Delete(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

@@ -16,31 +16,31 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Erreserbak item)
+        public virtual void Add(Erreserbak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Erreserbak? Get(int id)
+        public virtual Erreserbak? Get(int id)
         {
             return _session.Query<Erreserbak>().SingleOrDefault(x => x.Id == id);
         }
 
-        public IList<Erreserbak> GetAll()
+        public virtual IList<Erreserbak> GetAll()
         {
             return _session.Query<Erreserbak>().ToList();
         }
 
-        public void Update(Erreserbak item)
+        public virtual void Update(Erreserbak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Erreserbak item)
+        public virtual void Delete(Erreserbak item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

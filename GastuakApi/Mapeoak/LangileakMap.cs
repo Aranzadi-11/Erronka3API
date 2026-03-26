@@ -36,6 +36,11 @@ namespace JatetxeaApi.Mapeoak
             Map(x => x.RolaId)
                 .Column("rola_id")
                 .Nullable();
+
+            Map(x => x.TxatBaimena)
+                .Column("txat_baimena")
+                .Not.Nullable()
+                .Default("0");
         }
     }
 }

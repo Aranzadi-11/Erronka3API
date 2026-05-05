@@ -1,6 +1,8 @@
-﻿using JatetxeaApi.DTOak;
+﻿using GastuakApi.DTOak;
+using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using NHibernate;
+using NHibernate.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -278,6 +280,107 @@ namespace JatetxeaApi.Repositorioak
                 inv.AzkenEguneratzea = DateTime.Now;
                 session.Update(inv);
             }
+        }
+
+        public IList<Zerbitzuak> GetGaur()
+        {
+            using var session = NHibernateHelper.SessionFactory.OpenSession();
+
+            var gaur = DateTime.Today;
+            var bihar = gaur.AddDays(1);
+
+            return session.Query<Zerbitzuak>()
+                .Where(z => z.EskaeraData.HasValue && z.EskaeraData.Value >= gaur && z.EskaeraData.Value < bihar)
+                .OrderBy(z => z.EskaeraData)
+                .ThenBy(z => z.Id)
+                .ToList();
+        }
+
+        public virtual IList<Zerbitzuak> GetEgunekoak()
+        {
+            var gaur = DateTime.Today;
+            var bihar = gaur.AddDays(1);
+
+            return Session.Query<Zerbitzuak>()
+                .Where(z => z.EskaeraData.HasValue &&
+                            z.EskaeraData.Value >= gaur &&
+                            z.EskaeraData.Value < bihar)
+                .OrderBy(z => z.EskaeraData)
+                .ThenBy(z => z.Id)
+                .ToList();
+        }
+
+        public virtual IList<ZerbitzuLaburpenaDto> GetLaburpenaByErreserbaId(int erreserbaId)
+        {
+            using var session = SessionFactory.OpenSession();
+
+            var zerbitzua = session.Query<Zerbitzuak>()
+                .FirstOrDefault(z => z.ErreserbaId == erreserbaId);
+
+            if (zerbitzua == null) return new List<ZerbitzuLaburpenaDto>();
+
+            var xehetasunak = session.Query<ZerbitzuXehetasunak>()
+                .Where(x => x.ZerbitzuaId == zerbitzua.Id)
+                .ToList();
+
+            var plateraIds = xehetasunak.Select(x => x.PlateraId).Distinct().ToList();
+
+            var platerak = session.Query<Platerak>()
+                .Where(p => plateraIds.Contains(p.Id))
+                .ToList()
+                .ToDictionary(p => p.Id, p => p);
+
+            var kategoriaIds = platerak.Values
+                .Where(p => p.KategoriaId.HasValue)
+                .Select(p => p.KategoriaId!.Value)
+                .Distinct()
+                .ToList();
+
+            var kategoriak = session.Query<Kategoria>()
+                .Where(k => kategoriaIds.Contains(k.Id))
+                .ToList()
+                .ToDictionary(k => k.Id, k => k.Izena);
+
+            return xehetasunak
+                .Select(x =>
+                {
+                    platerak.TryGetValue(x.PlateraId, out var platera);
+                    string? kategoriaIzena = null;
+
+                    if (platera?.KategoriaId.HasValue == true &&
+                        kategoriak.TryGetValue(platera.KategoriaId.Value, out var katIzena))
+                    {
+                        kategoriaIzena = katIzena;
+                    }
+
+                    return new ZerbitzuLaburpenaDto
+                    {
+                        ZerbitzuaId = zerbitzua.Id,
+                        ZerbitzuXehetasunaId = x.Id,
+                        PlateraId = x.PlateraId,
+                        PlateraIzena = platera?.Izena ?? x.PlateraId.ToString(),
+                        KategoriaId = platera?.KategoriaId,
+                        KategoriaIzena = kategoriaIzena,
+                        Kantitatea = x.Kantitatea,
+                        PrezioUnitarioa = x.PrezioUnitarioa,
+                        Zerbitzatuta = x.Zerbitzatuta
+                    };
+                })
+                .OrderBy(x => x.KategoriaIzena ?? "")
+                .ThenBy(x => x.PlateraIzena)
+                .ToList();
+        }
+
+        public virtual bool AldatuEgoera(int zerbitzuaId, string egoeraBerria)
+        {
+            var z = Session.Query<Zerbitzuak>().SingleOrDefault(x => x.Id == zerbitzuaId);
+            if (z == null) return false;
+
+            using var tx = Session.BeginTransaction();
+            z.Egoera = egoeraBerria;
+            Session.Update(z);
+            tx.Commit();
+            return true;
         }
     }
 }

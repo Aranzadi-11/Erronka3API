@@ -1,4 +1,4 @@
-﻿
+﻿﻿
 using JatetxeaApi.Repositorioak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.DTOak;
@@ -148,6 +148,16 @@ namespace JatetxeaApi.Controllerrak
             _repo.Delete(e);
 
             return Ok(new { mezua = "Ezabatuta" });
+        }
+
+        /// <summary>
+        /// Plateren erabilgarritasuna lortzen du
+        /// </summary>
+        [HttpGet("disponibilitatea")]
+        public IActionResult GetDisponibilitatea()
+        {
+            var lista = _repo.GetDisponibilitatea();
+            return Ok(lista);
         }
     }
 }

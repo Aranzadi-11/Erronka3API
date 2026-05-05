@@ -50,5 +50,15 @@ namespace JatetxeaApi.Repositorioak
             _session.Delete(item);
             tx.Commit();
         }
+        public virtual IList<Mahaiak> GetByIds(IEnumerable<int> ids)
+        {
+            var idList = ids.Distinct().ToList();
+            if (!idList.Any()) return new List<Mahaiak>();
+
+            return _session.Query<Mahaiak>()
+                .Where(x => idList.Contains(x.Id))
+                .ToList();
+        }
+
     }
 }

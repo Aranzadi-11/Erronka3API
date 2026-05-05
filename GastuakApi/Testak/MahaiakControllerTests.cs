@@ -1,136 +1,111 @@
 using JatetxeaApi.Controllerrak;
-
 using JatetxeaApi.DTOak;
-
 using JatetxeaApi.Modeloak;
 
 using JatetxeaApi.Repositorioak;
-
-using Microsoft.AspNetCore.Mvc;
-
 using Moq;
-
 using NHibernate;
-
-using System.Collections.Generic;
-
 using Xunit;
 
-using NHSession = NHibernate.ISession;
+using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
-using NHSessionFactory = NHibernate.ISessionFactory;
- 
-namespace GastuakApi.Testak
-
+namespace JatetxeaApi.Testak.Controllerrak
 {
 
     public class MahaiakControllerTests
 
     {
-
-        private readonly Mock<NHSessionFactory> _sessionFactoryMock;
-
-        private readonly Mock<NHSession> _sessionMock;
-
-        private readonly Mock<MahaiakRepository> _mahaiakRepoMock;
-
+        private readonly Mock<MahaiakRepository> _repoMock;
         private readonly Mock<ErreserbakRepository> _erreserbakRepoMock;
-
         private readonly MahaiakController _controller;
- 
+
         public MahaiakControllerTests()
-
         {
-
-            _sessionFactoryMock = new Mock<NHSessionFactory>();
-
-            _sessionMock = new Mock<NHSession>();
- 
-            _sessionFactoryMock
-
-                .Setup(x => x.GetCurrentSession())
-
-                .Returns(_sessionMock.Object);
- 
-            _mahaiakRepoMock = new Mock<MahaiakRepository>(_sessionFactoryMock.Object);
-
-            _erreserbakRepoMock = new Mock<ErreserbakRepository>(_sessionFactoryMock.Object);
- 
-            _controller = new MahaiakController(_mahaiakRepoMock.Object, _erreserbakRepoMock.Object);
-
+            var sessionFactoryMock = new Mock<ISessionFactory>();
+            _repoMock = new Mock<MahaiakRepository>(sessionFactoryMock.Object);
+            _erreserbakRepoMock = new Mock<ErreserbakRepository>(sessionFactoryMock.Object);
+            _controller = new MahaiakController(_repoMock.Object, _erreserbakRepoMock.Object);
         }
- 
+
         [Fact]
-
-        public void GetAll_Ondo_Ok()
-
+        public void MahaiakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
         {
-
-            var mahaiak = new List<Mahaiak>
-
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Mahaiak>
             {
+                Mahaia(1, 1),
+                Mahaia(2, 2)
+            });
 
-                new Mahaiak(1, 4, "Libre"),
+            var result = _controller.GetAll();
 
-                new Mahaiak(2, 6, "Okupatuta")
-
-            };
- 
-            _mahaiakRepoMock.Setup(x => x.GetAll()).Returns(mahaiak);
- 
-            var emaitza = _controller.GetAll();
- 
-            var okResult = Assert.IsType<OkObjectResult>(emaitza);
-
-            Assert.NotNull(okResult.Value);
+            var lista = AssertOkEnumerable<MahaiakDto>(result);
+            Assert.Equal(2, lista.Count);
+            Assert.Equal(1, lista[0].MahaiaZbk);
+        }
 
         }
  
         [Fact]
-
-        public void Get_IdExistitzenDa_Ok()
-
+        public void MahaiakController_Get_MahaiaDagoenean_OkObjectResultItzultzenDu()
         {
+            _repoMock.Setup(r => r.Get(1)).Returns(Mahaia(1, 1));
 
-            var mahaia = new Mahaiak(1, 4, "Libre");
- 
-            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns(mahaia);
- 
-            var emaitza = _controller.Get(1);
- 
-            var okResult = Assert.IsType<OkObjectResult>(emaitza);
+            var result = _controller.Get(1);
 
-            Assert.NotNull(okResult.Value);
+            var dto = AssertOkValue<MahaiakDto>(result);
+            Assert.Equal(1, dto.Id);
+            Assert.Equal(1, dto.MahaiaZbk);
+        }
+ 
+        [Fact]
+        public void MahaiakController_Get_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        {
+            _repoMock.Setup(r => r.Get(99)).Returns((Mahaiak?)null);
+
+            var result = _controller.Get(99);
+
+            AssertNotFoundMessage(result);
+        }
 
         }
  
         [Fact]
-
-        public void Get_IdEzDaExistitzen_NotFound()
-
+        public void MahaiakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
         {
+            var dto = MahaiaSortuDto();
+            Mahaiak? gordeta = null;
+            _repoMock.Setup(r => r.Add(It.IsAny<Mahaiak>()))
+                .Callback<Mahaiak>(m =>
+                {
+                    m.Id = 7;
+                    gordeta = m;
+                });
 
-            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns((Mahaiak?)null);
- 
-            var emaitza = _controller.Get(1);
- 
-            Assert.IsType<NotFoundObjectResult>(emaitza);
+            var result = _controller.Sortu(dto);
 
+            var ok = AssertOk(result);
+            Assert.Equal("Mahai sortuta", Property<string>(ok.Value!, "mezua"));
+            Assert.Equal(7, Property<int>(ok.Value!, "id"));
+            Assert.NotNull(gordeta);
+            Assert.Equal(dto.MahaiaZbk, gordeta.MahaiaZbk);
+            Assert.Equal(dto.Edukiera, gordeta.Edukiera);
         }
- 
+
         [Fact]
-
-        public void Sortu_Ondo_Ok()
-
+        public void MahaiakController_Eguneratu_MahaiaDagoenean_OkObjectResultItzultzenDu()
         {
+            var mahaia = Mahaia(1, 1);
+            _repoMock.Setup(r => r.Get(1)).Returns(mahaia);
+            var dto = MahaiaSortuDto();
 
-            var dto = new MahaiakSortuDto
+            var result = _controller.Eguneratu(1, dto);
 
-            {
-
-                MahaiaZbk = 3,
-
-                Edukiera = 4,
+            AssertOkMessage(result, "Eguneratuta");
+            Assert.Equal(dto.MahaiaZbk, mahaia.MahaiaZbk);
+            Assert.Equal(dto.Edukiera, mahaia.Edukiera);
+            Assert.Equal(dto.Egoera, mahaia.Egoera);
+            _repoMock.Verify(r => r.Update(mahaia), Times.Once);
+        }
 
                 Egoera = "Libre"
 
@@ -145,22 +120,27 @@ namespace GastuakApi.Testak
         }
  
         [Fact]
-
-        public void Eguneratu_IdExistitzenDa_Ok()
-
+        public void MahaiakController_Eguneratu_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
+            _repoMock.Setup(r => r.Get(99)).Returns((Mahaiak?)null);
 
-            var mahaia = new Mahaiak(1, 4, "Libre");
- 
-            var dto = new MahaiakSortuDto
+            var result = _controller.Eguneratu(99, MahaiaSortuDto());
 
-            {
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Update(It.IsAny<Mahaiak>()), Times.Never);
+        }
 
-                MahaiaZbk = 5,
+        [Fact]
+        public void MahaiakController_Ezabatu_MahaiaDagoenean_OkObjectResultItzultzenDu()
+        {
+            var mahaia = Mahaia(1, 1);
+            _repoMock.Setup(r => r.Get(1)).Returns(mahaia);
 
-                Edukiera = 6,
+            var result = _controller.Ezabatu(1);
 
-                Egoera = "Okupatuta"
+            AssertOkMessage(result, "Ezabatuta");
+            _repoMock.Verify(r => r.Delete(mahaia), Times.Once);
+        }
 
             };
  
@@ -175,18 +155,25 @@ namespace GastuakApi.Testak
         }
  
         [Fact]
-
-        public void Eguneratu_IdEzDaExistitzen_NotFound()
-
+        public void MahaiakController_Ezabatu_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
+            _repoMock.Setup(r => r.Get(99)).Returns((Mahaiak?)null);
 
-            var dto = new MahaiakSortuDto
+            var result = _controller.Ezabatu(99);
 
-            {
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Delete(It.IsAny<Mahaiak>()), Times.Never);
+        }
 
-                MahaiaZbk = 5,
+        [Fact]
+        public void MahaiakController_GetLibre_DataOrduaHutsikDenean_BadRequestObjectResultItzultzenDu()
+        {
+            var result = _controller.GetLibre("");
 
-                Edukiera = 6,
+            AssertBadRequestMessage(result, "dataOrdua beharrezkoa da");
+            _erreserbakRepoMock.Verify(r => r.GetAll(), Times.Never);
+            _repoMock.Verify(r => r.GetAll(), Times.Never);
+        }
 
                 Egoera = "Okupatuta"
 
@@ -201,38 +188,83 @@ namespace GastuakApi.Testak
         }
  
         [Fact]
-
-        public void Ezabatu_IdExistitzenDa_Ok()
-
+        public void MahaiakController_GetLibre_DataOrduaOkerraDenean_BadRequestObjectResultItzultzenDu()
         {
+            var result = _controller.GetLibre("okerra");
 
-            var mahaia = new Mahaiak(1, 4, "Libre");
- 
-            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns(mahaia);
- 
-            var emaitza = _controller.Ezabatu(1);
- 
-            _mahaiakRepoMock.Verify(x => x.Delete(It.IsAny<Mahaiak>()), Times.Once);
+            AssertBadRequestMessage(result, "dataOrdua ez da zuzena");
+            _erreserbakRepoMock.Verify(r => r.GetAll(), Times.Never);
+            _repoMock.Verify(r => r.GetAll(), Times.Never);
+        }
 
-            Assert.IsType<OkObjectResult>(emaitza);
+        [Fact]
+        public void MahaiakController_GetLibre_ErreserbarikEzDagoenean_OkObjectResultItzultzenDu()
+        {
+            var data = new DateTime(2026, 5, 4, 14, 30, 0);
+            _erreserbakRepoMock.Setup(r => r.GetAll()).Returns(new List<Erreserbak>());
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Mahaiak>
+            {
+                Mahaia(2, 2),
+                Mahaia(1, 1)
+            });
 
+            var result = _controller.GetLibre(data.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            var lista = AssertOkEnumerable<MahaiakDto>(result);
+            Assert.Equal(new[] { 1, 2 }, lista.Select(m => m.MahaiaZbk).ToArray());
         }
  
         [Fact]
-
-        public void Ezabatu_IdEzDaExistitzen_NotFound()
-
+        public void MahaiakController_GetLibre_ErreserbaAktiboekin_OkObjectResultItzultzenDu()
         {
+            var data = new DateTime(2026, 5, 4, 14, 30, 0);
+            _erreserbakRepoMock.Setup(r => r.GetAll()).Returns(new List<Erreserbak>
+            {
+                Erreserba(1, mahaiaId: 2, erreserbaData: data, egoera: "Baieztatuta"),
+                Erreserba(2, mahaiaId: 3, erreserbaData: data.AddHours(1), egoera: "Baieztatuta")
+            });
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Mahaiak>
+            {
+                Mahaia(1, 1),
+                Mahaia(2, 2),
+                Mahaia(3, 3)
+            });
 
-            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns((Mahaiak?)null);
- 
-            var emaitza = _controller.Ezabatu(1);
- 
-            Assert.IsType<NotFoundObjectResult>(emaitza);
+            var result = _controller.GetLibre(data.ToString("yyyy-MM-dd HH:mm:ss"));
 
+            var lista = AssertOkEnumerable<MahaiakDto>(result);
+            Assert.Equal(new[] { 1, 3 }, lista.Select(m => m.Id).ToArray());
+        }
+
+        [Fact]
+        public void MahaiakController_GetLibre_ErreserbaKantzelatuEdoDataGabeekin_OkObjectResultItzultzenDu()
+        {
+            var data = new DateTime(2026, 5, 4, 14, 30, 0);
+            _erreserbakRepoMock.Setup(r => r.GetAll()).Returns(new List<Erreserbak>
+            {
+                Erreserba(1, mahaiaId: 1, erreserbaData: data, egoera: "Kantzelatuta"),
+                new Erreserbak
+                {
+                    Id = 2,
+                    MahaiaId = 2,
+                    Izena = "Data gabe",
+                    Telefonoa = 600000002,
+                    ErreserbaData = null,
+                    PertsonaKop = 4,
+                    Egoera = "Baieztatuta"
+                }
+            });
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Mahaiak>
+            {
+                Mahaia(1, 1),
+                Mahaia(2, 2)
+            });
+
+            var result = _controller.GetLibre(data.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            var lista = AssertOkEnumerable<MahaiakDto>(result);
+            Assert.Equal(new[] { 1, 2 }, lista.Select(m => m.Id).ToArray());
         }
 
     }
-
 }
- 

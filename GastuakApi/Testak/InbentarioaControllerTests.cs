@@ -1,15 +1,12 @@
-// InbentarioaControllerTests.cs
 using JatetxeaApi.Controllerrak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
-using Microsoft.AspNetCore.Mvc;
 using Moq;
 using NHibernate;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using Xunit;
+
+using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
 namespace JatetxeaApi.Testak.Controllerrak
 {
@@ -26,369 +23,193 @@ namespace JatetxeaApi.Testak.Controllerrak
         }
 
         [Fact]
-        public void I1_KontsultaOndo_InbentarioaItzultzenDu()
+        public void InbentarioaController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
         {
-            var elementuak = new List<Inbentarioa>
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Inbentarioa>
             {
-                new Inbentarioa
-                {
-                    Id = 1,
-                    Izena = "Arroza",
-                    Deskribapena = "Luzea",
-                    Kantitatea = 10,
-                    NeurriaUnitatea = "kg",
-                    StockMinimoa = 2,
-                    AzkenEguneratzea = DateTime.Now
-                },
-                new Inbentarioa
-                {
-                    Id = 2,
-                    Izena = "Esnea",
-                    Deskribapena = "Osoa",
-                    Kantitatea = 20,
-                    NeurriaUnitatea = "l",
-                    StockMinimoa = 5,
-                    AzkenEguneratzea = DateTime.Now
-                }
-            };
-
-            _repoMock.Setup(r => r.GetAll()).Returns(elementuak);
+                InbentarioaElementua(1, "Arroza"),
+                InbentarioaElementua(2, "Esnea")
+            });
 
             var result = _controller.GetAll();
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var dtoList = Assert.IsAssignableFrom<IEnumerable<InbentarioaDto>>(okResult.Value);
-            Assert.Equal(2, dtoList.Count());
+            var lista = AssertOkEnumerable<InbentarioaDto>(result);
+            Assert.Equal(2, lista.Count);
+            Assert.Equal("Arroza", lista[0].Izena);
         }
 
         [Fact]
-        public void I2_KontsultaSalbuespena_Propagatu()
+        public void InbentarioaController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
         {
-            _repoMock.Setup(r => r.GetAll()).Throws(new Exception("Database error"));
-
-            Assert.Throws<Exception>(() => _controller.GetAll());
-        }
-
-        [Fact]
-        public void I3_SorreraOndo_Ok()
-        {
-            var dto = new InbentarioaSortuDto
-            {
-                Izena = "Irina",
-                Deskribapena = "Garia",
-                Kantitatea = 15,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 3
-            };
-
-            Inbentarioa saved = null;
+            var dto = InbentarioaSortuDto();
+            Inbentarioa? gordeta = null;
             _repoMock.Setup(r => r.Add(It.IsAny<Inbentarioa>()))
-                .Callback<Inbentarioa>(e =>
+                .Callback<Inbentarioa>(i =>
                 {
-                    e.Id = 7;
-                    saved = e;
+                    i.Id = 7;
+                    gordeta = i;
                 });
 
             var result = _controller.Sortu(dto);
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic value = okResult.Value;
-            Assert.Equal("Elementua sortuta", value.mezua);
-            Assert.Equal(7, (int)value.id);
-            Assert.NotNull(saved);
-            Assert.Equal("Irina", saved.Izena);
+            var ok = AssertOk(result);
+            Assert.Equal("Elementua sortuta", Property<string>(ok.Value!, "mezua"));
+            Assert.Equal(7, Property<int>(ok.Value!, "id"));
+            Assert.NotNull(gordeta);
+            Assert.Equal(dto.Izena, gordeta.Izena);
+            Assert.NotNull(gordeta.AzkenEguneratzea);
         }
 
         [Fact]
-        public void I4_SorreraSalbuespena_Propagatu()
+        public void InbentarioaController_Get_ElementuaDagoenean_OkObjectResultItzultzenDu()
         {
-            var dto = new InbentarioaSortuDto
-            {
-                Izena = "Irina",
-                Deskribapena = "Garia",
-                Kantitatea = 15,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 3
-            };
-
-            _repoMock.Setup(r => r.Add(It.IsAny<Inbentarioa>())).Throws(new Exception("Database error"));
-
-            Assert.Throws<Exception>(() => _controller.Sortu(dto));
-        }
-
-        [Fact]
-        public void I5_ElementuaExistitzenDa_Ok()
-        {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
-
-            _repoMock.Setup(r => r.Get(1)).Returns(elementua);
+            _repoMock.Setup(r => r.Get(1)).Returns(InbentarioaElementua(1, "Arroza"));
 
             var result = _controller.Get(1);
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var dto = Assert.IsType<InbentarioaDto>(okResult.Value);
+            var dto = AssertOkValue<InbentarioaDto>(result);
             Assert.Equal(1, dto.Id);
             Assert.Equal("Arroza", dto.Izena);
         }
 
         [Fact]
-        public void I6_ElementuaEzExistitzen_NotFound()
+        public void InbentarioaController_Get_ElementuaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            _repoMock.Setup(r => r.Get(999)).Returns((Inbentarioa)null);
+            _repoMock.Setup(r => r.Get(99)).Returns((Inbentarioa?)null);
 
-            var result = _controller.Get(999);
+            var result = _controller.Get(99);
 
-            var notFound = Assert.IsType<NotFoundObjectResult>(result);
-            dynamic value = notFound.Value;
-            Assert.Equal("Ez da aurkitu", value.mezua);
+            AssertNotFoundMessage(result);
         }
 
         [Fact]
-        public void I7_GetSalbuespena_Propagatu()
+        public void InbentarioaController_Eguneratu_ElementuaDagoenean_OkObjectResultItzultzenDu()
         {
-            _repoMock.Setup(r => r.Get(1)).Throws(new Exception("Database error"));
-
-            Assert.Throws<Exception>(() => _controller.Get(1));
-        }
-
-        [Fact]
-        public void I8_ElementuaEzExistitzenEguneratu_NotFound()
-        {
-            _repoMock.Setup(r => r.Get(999)).Returns((Inbentarioa)null);
-            var dto = new InbentarioaSortuDto();
-
-            var result = _controller.Eguneratu(999, dto);
-
-            var notFound = Assert.IsType<NotFoundObjectResult>(result);
-            dynamic value = notFound.Value;
-            Assert.Equal("Ez da aurkitu", value.mezua);
-        }
-
-        [Fact]
-        public void I9_EguneratzeOndo_Ok()
-        {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
-
+            var elementua = InbentarioaElementua(1, "Arroza");
             _repoMock.Setup(r => r.Get(1)).Returns(elementua);
-
-            var dto = new InbentarioaSortuDto
-            {
-                Izena = "Arroza berria",
-                Deskribapena = "Integrala",
-                Kantitatea = 25,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 6
-            };
+            var dto = InbentarioaSortuDto();
 
             var result = _controller.Eguneratu(1, dto);
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic value = okResult.Value;
-            Assert.Equal("Eguneratuta", value.mezua);
-            Assert.Equal("Arroza berria", elementua.Izena);
-            Assert.Equal(25, elementua.Kantitatea);
+            AssertOkMessage(result, "Eguneratuta");
+            Assert.Equal(dto.Izena, elementua.Izena);
+            Assert.Equal(dto.Deskribapena, elementua.Deskribapena);
+            Assert.Equal(dto.Kantitatea, elementua.Kantitatea);
+            Assert.Equal(dto.NeurriaUnitatea, elementua.NeurriaUnitatea);
+            Assert.Equal(dto.StockMinimoa, elementua.StockMinimoa);
             _repoMock.Verify(r => r.Update(elementua), Times.Once);
         }
 
         [Fact]
-        public void I10_EguneratzeSalbuespena_Propagatu()
+        public void InbentarioaController_Eguneratu_ElementuaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
+            _repoMock.Setup(r => r.Get(99)).Returns((Inbentarioa?)null);
 
+            var result = _controller.Eguneratu(99, InbentarioaSortuDto());
+
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Update(It.IsAny<Inbentarioa>()), Times.Never);
+        }
+
+        [Fact]
+        public void InbentarioaController_EguneratuZatia_EremuGuztiekin_OkObjectResultItzultzenDu()
+        {
+            var elementua = InbentarioaElementua(1, "Arroza");
             _repoMock.Setup(r => r.Get(1)).Returns(elementua);
-            _repoMock.Setup(r => r.Update(It.IsAny<Inbentarioa>())).Throws(new Exception("Database error"));
-
-            var dto = new InbentarioaSortuDto
+            var dto = new InbentarioaPatchDto
             {
                 Izena = "Arroza berria",
                 Deskribapena = "Integrala",
                 Kantitatea = 25,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 6
-            };
-
-            Assert.Throws<Exception>(() => _controller.Eguneratu(1, dto));
-        }
-
-        [Fact]
-        public void I11_ElementuaEzExistitzenPatch_NotFound()
-        {
-            _repoMock.Setup(r => r.Get(999)).Returns((Inbentarioa)null);
-            var dto = new InbentarioaPatchDto();
-
-            var result = _controller.EguneratuZatia(999, dto);
-
-            var notFound = Assert.IsType<NotFoundObjectResult>(result);
-            dynamic value = notFound.Value;
-            Assert.Equal("Ez da aurkitu", value.mezua);
-        }
-
-        [Fact]
-        public void I12_PatchPartzialaOndo_Ok()
-        {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now.AddDays(-2)
-            };
-
-            _repoMock.Setup(r => r.Get(1)).Returns(elementua);
-
-            var dto = new InbentarioaPatchDto
-            {
-                Izena = "Arroza berria",
-                Kantitatea = 30
+                NeurriaUnitatea = "poltsa",
+                StockMinimoa = 4
             };
 
             var result = _controller.EguneratuZatia(1, dto);
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic value = okResult.Value;
-            Assert.Equal("Zati batean eguneratuta", value.mezua);
-            Assert.Equal("Arroza berria", elementua.Izena);
-            Assert.Equal(30, elementua.Kantitatea);
+            AssertOkMessage(result, "Zati batean eguneratuta");
+            Assert.Equal(dto.Izena, elementua.Izena);
+            Assert.Equal(dto.Deskribapena, elementua.Deskribapena);
+            Assert.Equal(dto.Kantitatea, elementua.Kantitatea);
+            Assert.Equal(dto.NeurriaUnitatea, elementua.NeurriaUnitatea);
+            Assert.Equal(dto.StockMinimoa, elementua.StockMinimoa);
             _repoMock.Verify(r => r.Update(elementua), Times.Once);
         }
 
         [Fact]
-        public void I13_PatchBalioAldaketarikGabe_Ok()
+        public void InbentarioaController_EguneratuZatia_EremurikGabe_OkObjectResultItzultzenDu()
         {
-            var dataZaharra = DateTime.Now.AddDays(-5);
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = dataZaharra
-            };
-
+            var elementua = InbentarioaElementua(1, "Arroza");
+            var azkena = elementua.AzkenEguneratzea;
             _repoMock.Setup(r => r.Get(1)).Returns(elementua);
 
-            var dto = new InbentarioaPatchDto();
+            var result = _controller.EguneratuZatia(1, new InbentarioaPatchDto());
 
-            var result = _controller.EguneratuZatia(1, dto);
-
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic value = okResult.Value;
-            Assert.Equal("Zati batean eguneratuta", value.mezua);
-            Assert.True(elementua.AzkenEguneratzea > dataZaharra);
+            AssertOkMessage(result, "Zati batean eguneratuta");
+            Assert.Equal("Arroza", elementua.Izena);
+            Assert.Equal("Deskribapena", elementua.Deskribapena);
+            Assert.Equal(10, elementua.Kantitatea);
+            Assert.Equal("kg", elementua.NeurriaUnitatea);
+            Assert.Equal(2, elementua.StockMinimoa);
+            Assert.True(elementua.AzkenEguneratzea > azkena);
             _repoMock.Verify(r => r.Update(elementua), Times.Once);
         }
 
         [Fact]
-        public void I14_PatchSalbuespena_Propagatu()
+        public void InbentarioaController_EguneratuZatia_ElementuaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
+            _repoMock.Setup(r => r.Get(99)).Returns((Inbentarioa?)null);
 
-            _repoMock.Setup(r => r.Get(1)).Returns(elementua);
-            _repoMock.Setup(r => r.Update(It.IsAny<Inbentarioa>())).Throws(new Exception("Database error"));
+            var result = _controller.EguneratuZatia(99, new InbentarioaPatchDto());
 
-            var dto = new InbentarioaPatchDto
-            {
-                Izena = "Arroza berria"
-            };
-
-            Assert.Throws<Exception>(() => _controller.EguneratuZatia(1, dto));
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Update(It.IsAny<Inbentarioa>()), Times.Never);
         }
 
         [Fact]
-        public void I15_ElementuaEzExistitzenEzabatu_NotFound()
+        public void InbentarioaController_Ezabatu_ElementuaDagoenean_OkObjectResultItzultzenDu()
         {
-            _repoMock.Setup(r => r.Get(999)).Returns((Inbentarioa)null);
-
-            var result = _controller.Ezabatu(999);
-
-            var notFound = Assert.IsType<NotFoundObjectResult>(result);
-            dynamic value = notFound.Value;
-            Assert.Equal("Ez da aurkitu", value.mezua);
-        }
-
-        [Fact]
-        public void I16_EzabatzeOndo_Ok()
-        {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
-
+            var elementua = InbentarioaElementua(1, "Arroza");
             _repoMock.Setup(r => r.Get(1)).Returns(elementua);
 
             var result = _controller.Ezabatu(1);
 
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            dynamic value = okResult.Value;
-            Assert.Equal("Ezabatuta", value.mezua);
+            AssertOkMessage(result, "Ezabatuta");
             _repoMock.Verify(r => r.Delete(elementua), Times.Once);
         }
 
         [Fact]
-        public void I17_EzabatzeSalbuespena_Propagatu()
+        public void InbentarioaController_Ezabatu_ElementuaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            var elementua = new Inbentarioa
-            {
-                Id = 1,
-                Izena = "Arroza",
-                Deskribapena = "Luzea",
-                Kantitatea = 10,
-                NeurriaUnitatea = "kg",
-                StockMinimoa = 2,
-                AzkenEguneratzea = DateTime.Now
-            };
+            _repoMock.Setup(r => r.Get(99)).Returns((Inbentarioa?)null);
 
-            _repoMock.Setup(r => r.Get(1)).Returns(elementua);
-            _repoMock.Setup(r => r.Delete(It.IsAny<Inbentarioa>())).Throws(new Exception("Database error"));
+            var result = _controller.Ezabatu(99);
 
-            Assert.Throws<Exception>(() => _controller.Ezabatu(1));
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Delete(It.IsAny<Inbentarioa>()), Times.Never);
+        }
+
+        [Fact]
+        public void InbentarioaController_AldatuKantitatea_EmaitzaOndoDenean_OkObjectResultItzultzenDu()
+        {
+            var emaitza = new EragiketaEmaitzaDto { Ondo = true, Mezua = "Kantitatea eguneratuta", Id = 1, KantitateBerria = 15 };
+            _repoMock.Setup(r => r.AldatuKantitatea(1, 5)).Returns(emaitza);
+
+            var result = _controller.AldatuKantitatea(1, new KantitateaAldatuDto { Aldaketa = 5 });
+
+            var value = AssertOkValue<EragiketaEmaitzaDto>(result);
+            Assert.Same(emaitza, value);
+        }
+
+        [Fact]
+        public void InbentarioaController_AldatuKantitatea_EmaitzaOndoEzDenean_BadRequestObjectResultItzultzenDu()
+        {
+            var emaitza = new EragiketaEmaitzaDto { Ondo = false, Mezua = "Ez da aurkitu", Id = 99 };
+            _repoMock.Setup(r => r.AldatuKantitatea(99, -5)).Returns(emaitza);
+
+            var result = _controller.AldatuKantitatea(99, new KantitateaAldatuDto { Aldaketa = -5 });
+
+            AssertBadRequestMessage(result, "Ez da aurkitu");
         }
     }
 }

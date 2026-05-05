@@ -16,7 +16,7 @@ namespace JatetxeaApi.Repositorioak
                 ?? "Host=localhost;Port=5432;Database=odoo_db;Username=odoo_db;Password=odoo_db";
         }
 
-        public async Task<DeskuntuEmaitzaDto> ValidateAsync(string? code)
+        public virtual async Task<DeskuntuEmaitzaDto> ValidateAsync(string? code)
         {
             var normalized = NormalizeCode(code);
             if (string.IsNullOrWhiteSpace(normalized))
@@ -98,7 +98,7 @@ namespace JatetxeaApi.Repositorioak
             }
         }
 
-        public async Task<DeskuntuEmaitzaDto> ApplyAsync(string? code)
+        public virtual async Task<DeskuntuEmaitzaDto> ApplyAsync(string? code)
         {
             var validation = await ValidateAsync(code);
             if (!validation.Valid || validation.CodeId == null)

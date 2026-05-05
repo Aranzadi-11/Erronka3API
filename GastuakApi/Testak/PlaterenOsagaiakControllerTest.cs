@@ -1,128 +1,321 @@
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using System;
+using System.Collections.Generic;
+using Xunit;
 using JatetxeaApi.Controllerrak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
-using Moq;
-using NHibernate;
-using Xunit;
 
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
-
-namespace JatetxeaApi.Testak.Controllerrak
+namespace JatetxeaApi.Testak
 {
-    public class PlaterenOsagaiakControllerTest
+    public class PlaterenOsagaiakControllerTests
     {
-        private readonly Mock<PlaterenOsagaiakRepository> _repoMock;
-        private readonly PlaterenOsagaiakController _controller;
-
-        public PlaterenOsagaiakControllerTest()
-        {
-            var sessionFactoryMock = new Mock<ISessionFactory>();
-            _repoMock = new Mock<PlaterenOsagaiakRepository>(sessionFactoryMock.Object);
-            _controller = new PlaterenOsagaiakController(_repoMock.Object);
-        }
-
         [Fact]
-        public void PlaterenOsagaiakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void PO1_GetAllOndo_Ok()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<PlaterenOsagaiak>
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var elementuak = new List<PlaterenOsagaiak>
             {
-                PlaterenOsagaia(1, 2),
-                PlaterenOsagaia(1, 3)
-            });
+                new PlaterenOsagaiak { PlateraId = 1, InbentarioaId = 1, Kantitatea = 2 },
+                new PlaterenOsagaiak { PlateraId = 1, InbentarioaId = 2, Kantitatea = 3 }
+            };
 
-            var result = _controller.GetAll();
+            mockRepo.Setup(r => r.GetAll()).Returns(elementuak);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            var lista = AssertOkEnumerable<PlaterenOsagaiak>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal(2, lista[0].InbentarioaId);
+            // Act
+            var result = controller.GetAll();
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedElementuak = Assert.IsType<List<PlaterenOsagaiak>>(okResult.Value);
+            Assert.Equal(2, returnedElementuak.Count);
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Get_OsagaiaDagoenean_OkObjectResultItzultzenDu()
+        public void PO2_GetAllSalbuespena_InternalServerError()
         {
-            var osagaia = PlaterenOsagaia(1, 2);
-            _repoMock.Setup(r => r.Get(1, 2)).Returns(osagaia);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            mockRepo.Setup(r => r.GetAll()).Throws(new Exception("Errorea"));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            var result = _controller.Get(1, 2);
-
-            var dto = AssertOkValue<PlaterenOsagaiak>(result);
-            Assert.Same(osagaia, dto);
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.GetAll());
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Get_OsagaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void PO3_ErlazioaExistitzenDa_Ok()
         {
-            _repoMock.Setup(r => r.Get(1, 99)).Returns((PlaterenOsagaiak?)null);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var elementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
 
-            var result = _controller.Get(1, 99);
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(elementua);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
+            // Act
+            var result = controller.Get(1, 2);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedElementua = Assert.IsType<PlaterenOsagaiak>(okResult.Value);
+            Assert.Equal(5, returnedElementua.Kantitatea);
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
+        public void PO4_ErlazioaEzExistitzen_NotFound()
         {
-            var dto = PlaterenOsagaia(4, 5);
-            PlaterenOsagaiak? gordeta = null;
-            _repoMock.Setup(r => r.Add(It.IsAny<PlaterenOsagaiak>()))
-                .Callback<PlaterenOsagaiak>(p => gordeta = p);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            mockRepo.Setup(r => r.Get(1, 2)).Returns((PlaterenOsagaiak)null);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            var result = _controller.Sortu(dto);
+            // Act
+            var result = controller.Get(1, 2);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Elementua sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(4, Property<int>(ok.Value!, "platareaId"));
-            Assert.Equal(5, Property<int>(ok.Value!, "inbentarioaId"));
-            Assert.NotNull(gordeta);
-            Assert.Equal(3m, gordeta.Kantitatea);
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+            Assert.Equal("Ez da aurkitu", mezua);
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Eguneratu_OsagaiaDagoenean_OkObjectResultItzultzenDu()
+        public void PO5_GetSalbuespena_InternalServerError()
         {
-            var osagaia = PlaterenOsagaia(1, 2);
-            _repoMock.Setup(r => r.Get(1, 2)).Returns(osagaia);
-            var dto = new PlaterenOsagaiak { PlateraId = 1, InbentarioaId = 2, Kantitatea = 8m };
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            mockRepo.Setup(r => r.Get(1, 2)).Throws(new Exception("Errorea"));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            var result = _controller.Eguneratu(1, 2, dto);
-
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal(8m, osagaia.Kantitatea);
-            _repoMock.Verify(r => r.Update(osagaia), Times.Once);
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Get(1, 2));
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Eguneratu_OsagaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void PO6_SortuOndo_Ok()
         {
-            _repoMock.Setup(r => r.Get(1, 99)).Returns((PlaterenOsagaiak?)null);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var dto = new PlaterenOsagaiak
+            {
+                PlateraId = 3,
+                InbentarioaId = 4,
+                Kantitatea = 7
+            };
 
-            var result = _controller.Eguneratu(1, 99, PlaterenOsagaia(1, 99));
+            mockRepo.Setup(r => r.Add(It.IsAny<PlaterenOsagaiak>()));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<PlaterenOsagaiak>()), Times.Never);
+            // Act
+            var result = controller.Sortu(dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var value = okResult.Value;
+
+            var mezua = value.GetType().GetProperty("mezua")?.GetValue(value, null);
+            var plateraId = value.GetType().GetProperty("platareaId")?.GetValue(value, null);
+            var inbentarioaId = value.GetType().GetProperty("inbentarioaId")?.GetValue(value, null);
+
+            Assert.Equal("Elementua sortuta", mezua);
+            Assert.Equal(3, plateraId);
+            Assert.Equal(4, inbentarioaId);
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Ezabatu_OsagaiaDagoenean_OkObjectResultItzultzenDu()
+        public void PO7_SortuBodyNull_InternalServerError()
         {
-            var osagaia = PlaterenOsagaia(1, 2);
-            _repoMock.Setup(r => r.Get(1, 2)).Returns(osagaia);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            var result = _controller.Ezabatu(1, 2);
-
-            AssertOkMessage(result, "Ezabatuta");
-            _repoMock.Verify(r => r.Delete(osagaia), Times.Once);
+            // Act & Assert
+            Assert.Throws<NullReferenceException>(() => controller.Sortu(null));
         }
 
         [Fact]
-        public void PlaterenOsagaiakController_Ezabatu_OsagaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void PO8_SortuSalbuespena_InternalServerError()
         {
-            _repoMock.Setup(r => r.Get(1, 99)).Returns((PlaterenOsagaiak?)null);
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var dto = new PlaterenOsagaiak
+            {
+                PlateraId = 3,
+                InbentarioaId = 4,
+                Kantitatea = 7
+            };
 
-            var result = _controller.Ezabatu(1, 99);
+            mockRepo.Setup(r => r.Add(It.IsAny<PlaterenOsagaiak>())).Throws(new Exception("Errorea"));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Delete(It.IsAny<PlaterenOsagaiak>()), Times.Never);
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Sortu(dto));
+        }
+
+        [Fact]
+        public void PO9_ErlazioaEzExistitzen_NotFound()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            mockRepo.Setup(r => r.Get(1, 2)).Returns((PlaterenOsagaiak)null);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Eguneratu(1, 2, new PlaterenOsagaiak { Kantitatea = 10 });
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+            Assert.Equal("Ez da aurkitu", mezua);
+        }
+
+        [Fact]
+        public void PO10_EguneratuOndo_Ok()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var existitzenDenElementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
+
+            var dto = new PlaterenOsagaiak
+            {
+                Kantitatea = 10
+            };
+
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(existitzenDenElementua);
+            mockRepo.Setup(r => r.Update(It.IsAny<PlaterenOsagaiak>()));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Eguneratu(1, 2, dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
+
+            Assert.Equal("Eguneratuta", mezua);
+            Assert.Equal(10, existitzenDenElementua.Kantitatea);
+            mockRepo.Verify(r => r.Update(It.IsAny<PlaterenOsagaiak>()), Times.Once);
+        }
+
+        [Fact]
+        public void PO11_EguneratuBodyNull_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var existitzenDenElementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
+
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(existitzenDenElementua);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<NullReferenceException>(() => controller.Eguneratu(1, 2, null));
+        }
+
+        [Fact]
+        public void PO12_EguneratuSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var existitzenDenElementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
+
+            var dto = new PlaterenOsagaiak
+            {
+                Kantitatea = 10
+            };
+
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(existitzenDenElementua);
+            mockRepo.Setup(r => r.Update(It.IsAny<PlaterenOsagaiak>())).Throws(new Exception("Errorea"));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Eguneratu(1, 2, dto));
+        }
+
+        [Fact]
+        public void PO13_ErlazioaEzExistitzen_NotFound()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            mockRepo.Setup(r => r.Get(1, 2)).Returns((PlaterenOsagaiak)null);
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Ezabatu(1, 2);
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+            Assert.Equal("Ez da aurkitu", mezua);
+        }
+
+        [Fact]
+        public void PO14_EzabatuOndo_Ok()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var existitzenDenElementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
+
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(existitzenDenElementua);
+            mockRepo.Setup(r => r.Delete(It.IsAny<PlaterenOsagaiak>()));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Ezabatu(1, 2);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
+
+            Assert.Equal("Ezabatuta", mezua);
+            mockRepo.Verify(r => r.Delete(It.IsAny<PlaterenOsagaiak>()), Times.Once);
+        }
+
+        [Fact]
+        public void PO15_EzabatuSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<PlaterenOsagaiakRepository>();
+            var existitzenDenElementua = new PlaterenOsagaiak
+            {
+                PlateraId = 1,
+                InbentarioaId = 2,
+                Kantitatea = 5
+            };
+
+            mockRepo.Setup(r => r.Get(1, 2)).Returns(existitzenDenElementua);
+            mockRepo.Setup(r => r.Delete(It.IsAny<PlaterenOsagaiak>())).Throws(new Exception("Errorea"));
+            var controller = new PlaterenOsagaiakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Ezabatu(1, 2));
         }
     }
 }

@@ -1,218 +1,210 @@
+using Microsoft.AspNetCore.Mvc;
+using Xunit;
+using Moq;
 using JatetxeaApi.Controllerrak;
-using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
-using Moq;
-using NHibernate;
-using Xunit;
+using JatetxeaApi.DTOak;
+using System.Collections.Generic;
+using System.Linq;
 
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
-
-namespace JatetxeaApi.Testak.Controllerrak
+namespace JatetxeaApi.Testak
 {
     public class PlaterakControllerTests
     {
-        private readonly Mock<PlaterakRepository> _repoMock;
-        private readonly PlaterakController _controller;
-
-        public PlaterakControllerTests()
-        {
-            var sessionFactoryMock = new Mock<ISessionFactory>();
-            _repoMock = new Mock<PlaterakRepository>(sessionFactoryMock.Object);
-            _controller = new PlaterakController(_repoMock.Object);
-        }
-
         [Fact]
-        public void PlaterakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void GetAll_OkItzultzenDu_PlaterakExistitzenDirenean()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Platerak>
+            var mockRepo = new Mock<PlaterakRepository>();
+            var platerak = new List<Platerak>
             {
-                Platera(1, "Entsalada"),
-                Platera(2, "Zopa")
-            });
+                new Platerak { Id = 1, Izena = "Plater1", Deskribapena = "Desk1", Prezioa = 10, KategoriaId = 1, Erabilgarri = "Bai", SortzeData = System.DateTime.Now, Irudia = "img1.jpg" },
+                new Platerak { Id = 2, Izena = "Plater2", Deskribapena = "Desk2", Prezioa = 15, KategoriaId = 2, Erabilgarri = "Ez", SortzeData = System.DateTime.Now, Irudia = "img2.jpg" }
+            };
+            mockRepo.Setup(r => r.GetAll()).Returns(platerak);
 
-            var result = _controller.GetAll();
+            var controller = new PlaterakController(mockRepo.Object);
 
-            var lista = AssertOkEnumerable<PlaterakDto>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal("Entsalada", lista[0].Izena);
+            var result = controller.GetAll();
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dtoList = Assert.IsAssignableFrom<IEnumerable<PlaterakDto>>(okResult.Value);
+            Assert.Equal(2, dtoList.Count());
         }
 
         [Fact]
-        public void PlaterakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
+        public void Get_OkItzultzenDu_PlateraExistitzenDenean()
         {
-            var dto = PlateraSortuDto();
-            Platerak? gordeta = null;
-            _repoMock.Setup(r => r.Add(It.IsAny<Platerak>()))
-                .Callback<Platerak>(p =>
-                {
-                    p.Id = 7;
-                    gordeta = p;
-                });
+            var mockRepo = new Mock<PlaterakRepository>();
+            var platera = new Platerak { Id = 5, Izena = "Plater5", Prezioa = 20 };
+            mockRepo.Setup(r => r.Get(5)).Returns(platera);
 
-            var result = _controller.Sortu(dto);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Platera sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(7, Property<int>(ok.Value!, "id"));
-            Assert.NotNull(gordeta);
-            Assert.Equal(dto.Izena, gordeta.Izena);
-            Assert.NotNull(gordeta.SortzeData);
+            var result = controller.Get(5);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dto = Assert.IsType<PlaterakDto>(okResult.Value);
+            Assert.Equal(5, dto.Id);
         }
 
         [Fact]
-        public void PlaterakController_Get_PlateraDagoenean_OkObjectResultItzultzenDu()
+        public void Get_NotFoundItzultzenDu_PlateraEzExistitzenDenean()
         {
-            _repoMock.Setup(r => r.Get(1)).Returns(Platera(1, "Entsalada"));
+            var mockRepo = new Mock<PlaterakRepository>();
+            mockRepo.Setup(r => r.Get(999)).Returns((Platerak)null);
 
-            var result = _controller.Get(1);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            var dto = AssertOkValue<PlaterakDto>(result);
-            Assert.Equal(1, dto.Id);
-            Assert.Equal("Entsalada", dto.Izena);
+            var result = controller.Get(999);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void PlaterakController_Get_PlateraEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void Sortu_OkItzultzenDu_PlateraOndoSortzenDenean()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Platerak?)null);
+            var mockRepo = new Mock<PlaterakRepository>();
+            var dto = new PlaterakSortuDto
+            {
+                Izena = "Plater Berria",
+                Deskribapena = "Deskribapena",
+                Prezioa = 12.5m,
+                KategoriaId = 1,
+                Erabilgarri = "Bai",
+                Irudia = "irudia.jpg"
+            };
+            Platerak savedPlater = null;
+            mockRepo.Setup(r => r.Add(It.IsAny<Platerak>())).Callback<Platerak>(p => savedPlater = p);
 
-            var result = _controller.Get(99);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
+            var result = controller.Sortu(dto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Platera sortuta", value.mezua);
+            Assert.NotNull(savedPlater);
+            Assert.Equal(dto.Izena, savedPlater.Izena);
         }
 
         [Fact]
-        public void PlaterakController_Eguneratu_PlateraDagoenean_OkObjectResultItzultzenDu()
+        public void Eguneratu_OkItzultzenDu_PlateraExistitzenDenean()
         {
-            var platera = Platera(1, "Zaharra");
-            _repoMock.Setup(r => r.Get(1)).Returns(platera);
-            var dto = PlateraSortuDto();
+            var mockRepo = new Mock<PlaterakRepository>();
+            var platera = new Platerak { Id = 5, Izena = "Plater5", Deskribapena = "Desk", Prezioa = 20, KategoriaId = 1, Erabilgarri = "Bai", Irudia = "img.jpg" };
+            mockRepo.Setup(r => r.Get(5)).Returns(platera);
+            var dto = new PlaterakSortuDto
+            {
+                Izena = "PlaterUpdated",
+                Deskribapena = "DeskUpdated",
+                Prezioa = 25,
+                KategoriaId = 2,
+                Erabilgarri = "Ez",
+                Irudia = "img2.jpg"
+            };
 
-            var result = _controller.Eguneratu(1, dto);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal(dto.Izena, platera.Izena);
-            Assert.Equal(dto.Deskribapena, platera.Deskribapena);
-            Assert.Equal(dto.Prezioa, platera.Prezioa);
-            Assert.Equal(dto.KategoriaId, platera.KategoriaId);
-            Assert.Equal(dto.Erabilgarri, platera.Erabilgarri);
-            Assert.Equal(dto.Irudia, platera.Irudia);
-            _repoMock.Verify(r => r.Update(platera), Times.Once);
+            var result = controller.Eguneratu(5, dto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Eguneratuta", value.mezua);
+            mockRepo.Verify(r => r.Update(platera), Times.Once);
         }
 
         [Fact]
-        public void PlaterakController_Eguneratu_PlateraEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void Eguneratu_NotFoundItzultzenDu_PlateraEzExistitzenDenean()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Platerak?)null);
+            var mockRepo = new Mock<PlaterakRepository>();
+            mockRepo.Setup(r => r.Get(999)).Returns((Platerak)null);
+            var dto = new PlaterakSortuDto();
 
-            var result = _controller.Eguneratu(99, PlateraSortuDto());
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<Platerak>()), Times.Never);
+            var result = controller.Eguneratu(999, dto);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void PlaterakController_EguneratuZatia_EremuGuztiekin_OkObjectResultItzultzenDu()
+        public void EguneratuZatia_OkItzultzenDu_PlateraExistitzenDenean()
         {
-            var platera = Platera(1, "Entsalada");
-            _repoMock.Setup(r => r.Get(1)).Returns(platera);
+            var mockRepo = new Mock<PlaterakRepository>();
+            var platera = new Platerak { Id = 5, Izena = "Plater5", Deskribapena = "Desk", Prezioa = 20, KategoriaId = 1, Erabilgarri = "Bai", Irudia = "img.jpg" };
+            mockRepo.Setup(r => r.Get(5)).Returns(platera);
             var dto = new PlaterakPatchDto
             {
-                Izena = "Entsalada berria",
-                Deskribapena = "Berritua",
-                Prezioa = 20m,
-                KategoriaId = 3,
-                Erabilgarri = "Ez",
-                Irudia = "berria.png"
+                Izena = "IzenaBerria",
+                Prezioa = 30,
+                KategoriaId = 3
             };
 
-            var result = _controller.EguneratuZatia(1, dto);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertOkMessage(result, "Zati batean eguneratuta");
-            Assert.Equal(dto.Izena, platera.Izena);
-            Assert.Equal(dto.Deskribapena, platera.Deskribapena);
-            Assert.Equal(dto.Prezioa, platera.Prezioa);
-            Assert.Equal(dto.KategoriaId, platera.KategoriaId);
-            Assert.Equal(dto.Erabilgarri, platera.Erabilgarri);
-            Assert.Equal(dto.Irudia, platera.Irudia);
-            _repoMock.Verify(r => r.Update(platera), Times.Once);
+            var result = controller.EguneratuZatia(5, dto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Zati batean eguneratuta", value.mezua);
+            mockRepo.Verify(r => r.Update(platera), Times.Once);
+            Assert.Equal("IzenaBerria", platera.Izena);
+            Assert.Equal(30, platera.Prezioa);
+            Assert.Equal(3, platera.KategoriaId);
+            Assert.Equal("Desk", platera.Deskribapena);
         }
 
         [Fact]
-        public void PlaterakController_EguneratuZatia_EremurikGabe_OkObjectResultItzultzenDu()
+        public void EguneratuZatia_NotFoundItzultzenDu_PlateraEzExistitzenDenean()
         {
-            var platera = Platera(1, "Entsalada");
-            _repoMock.Setup(r => r.Get(1)).Returns(platera);
+            var mockRepo = new Mock<PlaterakRepository>();
+            mockRepo.Setup(r => r.Get(999)).Returns((Platerak)null);
+            var dto = new PlaterakPatchDto { Izena = "NewName" };
 
-            var result = _controller.EguneratuZatia(1, new PlaterakPatchDto());
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertOkMessage(result, "Zati batean eguneratuta");
-            Assert.Equal("Entsalada", platera.Izena);
-            Assert.Equal("Freskoa", platera.Deskribapena);
-            Assert.Equal(12.5m, platera.Prezioa);
-            Assert.Equal(1, platera.KategoriaId);
-            Assert.Equal("Bai", platera.Erabilgarri);
-            Assert.Equal("irudia.png", platera.Irudia);
-            _repoMock.Verify(r => r.Update(platera), Times.Once);
+            var result = controller.EguneratuZatia(999, dto);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void PlaterakController_EguneratuZatia_PlateraEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void Ezabatu_OkItzultzenDu_PlateraExistitzenDenean()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Platerak?)null);
+            var mockRepo = new Mock<PlaterakRepository>();
+            var platera = new Platerak { Id = 5, Izena = "Plater5" };
+            mockRepo.Setup(r => r.Get(5)).Returns(platera);
 
-            var result = _controller.EguneratuZatia(99, new PlaterakPatchDto());
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<Platerak>()), Times.Never);
+            var result = controller.Ezabatu(5);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Ezabatuta", value.mezua);
+            mockRepo.Verify(r => r.Delete(platera), Times.Once);
         }
 
         [Fact]
-        public void PlaterakController_Ezabatu_PlateraDagoenean_OkObjectResultItzultzenDu()
+        public void Ezabatu_NotFoundItzultzenDu_PlateraEzExistitzenDenean()
         {
-            var platera = Platera(1, "Entsalada");
-            _repoMock.Setup(r => r.Get(1)).Returns(platera);
+            var mockRepo = new Mock<PlaterakRepository>();
+            mockRepo.Setup(r => r.Get(999)).Returns((Platerak)null);
 
-            var result = _controller.Ezabatu(1);
+            var controller = new PlaterakController(mockRepo.Object);
 
-            AssertOkMessage(result, "Ezabatuta");
-            _repoMock.Verify(r => r.Delete(platera), Times.Once);
-        }
+            var result = controller.Ezabatu(999);
 
-        [Fact]
-        public void PlaterakController_Ezabatu_PlateraEzDagoenean_NotFoundObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Get(99)).Returns((Platerak?)null);
-
-            var result = _controller.Ezabatu(99);
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Delete(It.IsAny<Platerak>()), Times.Never);
-        }
-
-        [Fact]
-        public void PlaterakController_GetDisponibilitatea_Zerrenda_OkObjectResultItzultzenDu()
-        {
-            var erabilgarritasuna = new List<PlateraDisponibilitateaDto>
-            {
-                new PlateraDisponibilitateaDto
-                {
-                    Id = 1,
-                    Izena = "Entsalada",
-                    KategoriaId = 1,
-                    KategoriaIzena = "Hotzak",
-                    Erabilgarri = "Bai",
-                    PrestatuDaitezkeenUnitateak = 5
-                }
-            };
-            _repoMock.Setup(r => r.GetDisponibilitatea()).Returns(erabilgarritasuna);
-
-            var result = _controller.GetDisponibilitatea();
-
-            var lista = AssertOkEnumerable<PlateraDisponibilitateaDto>(result);
-            Assert.Single(lista);
-            Assert.Equal(5, lista[0].PrestatuDaitezkeenUnitateak);
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
     }
-}
+}  

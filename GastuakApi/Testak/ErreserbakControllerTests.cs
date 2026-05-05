@@ -1,12 +1,15 @@
+// ErreserbakControllerTests.cs
 using JatetxeaApi.Controllerrak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using NHibernate;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
-
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
 namespace JatetxeaApi.Testak.Controllerrak
 {
@@ -25,240 +28,365 @@ namespace JatetxeaApi.Testak.Controllerrak
         }
 
         [Fact]
-        public void ErreserbakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void E1_KontsultaOndo_ErreserbakItzultzenDu()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Erreserbak>
+            var erreserbak = new List<Erreserbak>
             {
-                Erreserba(1),
-                Erreserba(2)
-            });
+                new Erreserbak
+                {
+                    Id = 1,
+                    MahaiaId = 2,
+                    Izena = "Ane",
+                    Telefonoa = 123456789,
+                    ErreserbaData = DateTime.Now,
+                    PertsonaKop = 4,
+                    Egoera = "Itxaropean",
+                    Oharrak = "Leiho ondoan"
+                },
+                new Erreserbak
+                {
+                    Id = 2,
+                    MahaiaId = 3,
+                    Izena = "Iker",
+                    Telefonoa = 987654321,
+                    ErreserbaData = DateTime.Now,
+                    PertsonaKop = 2,
+                    Egoera = "Baieztatua",
+                    Oharrak = "Ez du oharrik"
+                }
+            };
+
+            _repoMock.Setup(r => r.GetAll()).Returns(erreserbak);
 
             var result = _controller.GetAll();
 
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal("Erreserba1", lista[0].Izena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dtoList = Assert.IsAssignableFrom<IEnumerable<ErreserbakDto>>(okResult.Value);
+            Assert.Equal(2, dtoList.Count());
         }
 
         [Fact]
-        public void ErreserbakController_Get_ErreserbaDagoenean_OkObjectResultItzultzenDu()
+        public void E2_KontsultaSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(1)).Returns(Erreserba(1));
+            _repoMock.Setup(r => r.GetAll()).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.GetAll());
+        }
+
+        [Fact]
+        public void E3_ErreserbaExistitzenDa_Ok()
+        {
+            var erreserba = new Erreserbak
+            {
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
+
+            _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
 
             var result = _controller.Get(1);
 
-            var dto = AssertOkValue<ErreserbakDto>(result);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dto = Assert.IsType<ErreserbakDto>(okResult.Value);
             Assert.Equal(1, dto.Id);
-            Assert.Equal("Erreserba1", dto.Izena);
+            Assert.Equal("Ane", dto.Izena);
         }
 
         [Fact]
-        public void ErreserbakController_Get_ErreserbaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void E4_ErreserbaEzExistitzen_NotFound()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Erreserbak?)null);
+            _repoMock.Setup(r => r.Get(999)).Returns((Erreserbak)null);
 
-            var result = _controller.Get(99);
+            var result = _controller.Get(999);
 
-            AssertNotFoundMessage(result);
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void ErreserbakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
+        public void E5_GetSalbuespena_Propagatu()
         {
-            var dto = ErreserbaSortuDto();
-            Erreserbak? gordeta = null;
+            _repoMock.Setup(r => r.Get(1)).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.Get(1));
+        }
+
+        [Fact]
+        public void E6_SorreraOndo_Ok()
+        {
+            var dto = new ErreserbakSortuDto
+            {
+                MahaiaId = 5,
+                Izena = "Mikel",
+                Telefonoa = 111222333,
+                ErreserbaData = DateTime.Now.AddDays(1),
+                PertsonaKop = 6,
+                Egoera = "Itxaropean",
+                Oharrak = "Urtebetetzea"
+            };
+
+            Erreserbak savedErreserba = null;
             _repoMock.Setup(r => r.Add(It.IsAny<Erreserbak>()))
                 .Callback<Erreserbak>(e =>
                 {
-                    e.Id = 7;
-                    gordeta = e;
+                    e.Id = 10;
+                    savedErreserba = e;
                 });
 
             var result = _controller.Sortu(dto);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Erreserba sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(7, Property<int>(ok.Value!, "id"));
-            Assert.NotNull(gordeta);
-            Assert.Equal(dto.MahaiaId, gordeta.MahaiaId);
-            Assert.Equal(dto.Izena, gordeta.Izena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Erreserba sortuta", value.mezua);
+            Assert.Equal(10, (int)value.id);
+            Assert.NotNull(savedErreserba);
+            Assert.Equal("Mikel", savedErreserba.Izena);
         }
 
         [Fact]
-        public void ErreserbakController_Eguneratu_ErreserbaDagoenean_OkObjectResultItzultzenDu()
+        public void E7_SorreraSalbuespena_Propagatu()
         {
-            var erreserba = Erreserba(1);
+            var dto = new ErreserbakSortuDto
+            {
+                MahaiaId = 5,
+                Izena = "Mikel",
+                Telefonoa = 111222333,
+                ErreserbaData = DateTime.Now.AddDays(1),
+                PertsonaKop = 6,
+                Egoera = "Itxaropean",
+                Oharrak = "Urtebetetzea"
+            };
+
+            _repoMock.Setup(r => r.Add(It.IsAny<Erreserbak>())).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.Sortu(dto));
+        }
+
+        [Fact]
+        public void E8_ErreserbaEzExistitzenEguneratu_NotFound()
+        {
+            _repoMock.Setup(r => r.Get(999)).Returns((Erreserbak)null);
+
+            var dto = new ErreserbakSortuDto
+            {
+                MahaiaId = 4,
+                Izena = "Ane",
+                Telefonoa = 123123123,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 2,
+                Egoera = "Baieztatua",
+                Oharrak = "Proba"
+            };
+
+            var result = _controller.Eguneratu(999, dto);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void E9_EguneratzeOndo_Ok()
+        {
+            var erreserba = new Erreserbak
+            {
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
+
             _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
-            var dto = ErreserbaSortuDto();
+
+            var dto = new ErreserbakSortuDto
+            {
+                MahaiaId = 9,
+                Izena = "Aneberri",
+                Telefonoa = 999888777,
+                ErreserbaData = DateTime.Now.AddDays(2),
+                PertsonaKop = 8,
+                Egoera = "Baieztatua",
+                Oharrak = "Aldatuta"
+            };
 
             var result = _controller.Eguneratu(1, dto);
 
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal(dto.MahaiaId, erreserba.MahaiaId);
-            Assert.Equal(dto.Izena, erreserba.Izena);
-            Assert.Equal(dto.Telefonoa, erreserba.Telefonoa);
-            Assert.Equal(dto.ErreserbaData, erreserba.ErreserbaData);
-            Assert.Equal(dto.PertsonaKop, erreserba.PertsonaKop);
-            Assert.Equal(dto.Egoera, erreserba.Egoera);
-            Assert.Equal(dto.Oharrak, erreserba.Oharrak);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Eguneratuta", value.mezua);
+            Assert.Equal("Aneberri", erreserba.Izena);
+            Assert.Equal(9, erreserba.MahaiaId);
             _repoMock.Verify(r => r.Update(erreserba), Times.Once);
         }
 
         [Fact]
-        public void ErreserbakController_Eguneratu_ErreserbaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void E10_EguneratzeSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Erreserbak?)null);
+            var erreserba = new Erreserbak
+            {
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
 
-            var result = _controller.Eguneratu(99, ErreserbaSortuDto());
+            _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
+            _repoMock.Setup(r => r.Update(It.IsAny<Erreserbak>())).Throws(new Exception("Database error"));
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<Erreserbak>()), Times.Never);
+            var dto = new ErreserbakSortuDto
+            {
+                MahaiaId = 9,
+                Izena = "Aneberri",
+                Telefonoa = 999888777,
+                ErreserbaData = DateTime.Now.AddDays(2),
+                PertsonaKop = 8,
+                Egoera = "Baieztatua",
+                Oharrak = "Aldatuta"
+            };
+
+            Assert.Throws<Exception>(() => _controller.Eguneratu(1, dto));
         }
 
         [Fact]
-        public void ErreserbakController_Ezabatu_ErreserbaLoturarikGabeDagoenean_OkObjectResultItzultzenDu()
+        public void E11_ErreserbaEzExistitzenEzabatu_NotFound()
         {
-            var erreserba = Erreserba(1);
-            _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
-            _zerbitzuRepoMock.Setup(r => r.GetAll()).Returns(new List<Zerbitzuak>
+            _repoMock.Setup(r => r.Get(999)).Returns((Erreserbak)null);
+
+            var result = _controller.Ezabatu(999);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void E12_EzabatuLoturarikGabe_Ok()
+        {
+            var erreserba = new Erreserbak
             {
-                Zerbitzua(2, erreserbaId: 99)
-            });
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
+
+            _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
+            _zerbitzuRepoMock.Setup(r => r.GetAll()).Returns(new List<Zerbitzuak>());
 
             var result = _controller.Ezabatu(1);
 
-            AssertOkMessage(result, "Ezabatuta");
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Ezabatuta", value.mezua);
             _zerbitzuRepoMock.Verify(r => r.Update(It.IsAny<Zerbitzuak>()), Times.Never);
             _repoMock.Verify(r => r.Delete(erreserba), Times.Once);
         }
 
         [Fact]
-        public void ErreserbakController_Ezabatu_ErreserbaLotutakoZerbitzuekinDagoenean_OkObjectResultItzultzenDu()
+        public void E13_EzabatuLoturakGarbituta_Ok()
         {
-            var erreserba = Erreserba(1);
+            var erreserba = new Erreserbak
+            {
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
+
             var zerbitzuak = new List<Zerbitzuak>
             {
-                Zerbitzua(1, erreserbaId: 1),
-                Zerbitzua(2, erreserbaId: 1),
-                Zerbitzua(3, erreserbaId: 3)
+                new Zerbitzuak
+                {
+                    Id = 10,
+                    LangileId = 1,
+                    MahaiaId = 2,
+                    ErreserbaId = 1,
+                    EskaeraData = DateTime.Now,
+                    Egoera = "Irekita",
+                    Guztira = 50
+                },
+                new Zerbitzuak
+                {
+                    Id = 11,
+                    LangileId = 2,
+                    MahaiaId = 3,
+                    ErreserbaId = 1,
+                    EskaeraData = DateTime.Now,
+                    Egoera = "Irekita",
+                    Guztira = 25
+                }
             };
+
             _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
             _zerbitzuRepoMock.Setup(r => r.GetAll()).Returns(zerbitzuak);
 
             var result = _controller.Ezabatu(1);
 
-            AssertOkMessage(result, "Ezabatuta");
-            Assert.Null(zerbitzuak[0].ErreserbaId);
-            Assert.Null(zerbitzuak[1].ErreserbaId);
-            Assert.Equal(3, zerbitzuak[2].ErreserbaId);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Ezabatuta", value.mezua);
+            Assert.All(zerbitzuak, z => Assert.Null(z.ErreserbaId));
             _zerbitzuRepoMock.Verify(r => r.Update(It.IsAny<Zerbitzuak>()), Times.Exactly(2));
             _repoMock.Verify(r => r.Delete(erreserba), Times.Once);
         }
 
         [Fact]
-        public void ErreserbakController_Ezabatu_ErreserbaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void E14_EzabatzeSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Erreserbak?)null);
+            var erreserba = new Erreserbak
+            {
+                Id = 1,
+                MahaiaId = 2,
+                Izena = "Ane",
+                Telefonoa = 123456789,
+                ErreserbaData = DateTime.Now,
+                PertsonaKop = 4,
+                Egoera = "Itxaropean",
+                Oharrak = "Leiho ondoan"
+            };
 
-            var result = _controller.Ezabatu(99);
+            var zerbitzuak = new List<Zerbitzuak>
+            {
+                new Zerbitzuak
+                {
+                    Id = 10,
+                    LangileId = 1,
+                    MahaiaId = 2,
+                    ErreserbaId = 1,
+                    EskaeraData = DateTime.Now,
+                    Egoera = "Irekita",
+                    Guztira = 50
+                }
+            };
 
-            AssertNotFoundMessage(result);
-            _zerbitzuRepoMock.Verify(r => r.GetAll(), Times.Never);
-            _repoMock.Verify(r => r.Delete(It.IsAny<Erreserbak>()), Times.Never);
-        }
+            _repoMock.Setup(r => r.Get(1)).Returns(erreserba);
+            _zerbitzuRepoMock.Setup(r => r.GetAll()).Returns(zerbitzuak);
+            _zerbitzuRepoMock.Setup(r => r.Update(It.IsAny<Zerbitzuak>())).Throws(new Exception("Database error"));
 
-        [Fact]
-        public void ErreserbakController_GetGaur_GaurkoZerrenda_OkObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.GetGaur()).Returns(new List<Erreserbak> { Erreserba(1) });
-
-            var result = _controller.GetGaur();
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            Assert.Equal(1, lista[0].Id);
-        }
-
-        [Fact]
-        public void ErreserbakController_GetEtorkizunak_EtorkizunekoZerrenda_OkObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.GetEtorkizunak()).Returns(new List<Erreserbak> { Erreserba(2) });
-
-            var result = _controller.GetEtorkizunak();
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            Assert.Equal(2, lista[0].Id);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_ParametrorikGabe_OkObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Bilatu(null, null)).Returns(new List<Erreserbak> { Erreserba(1) });
-
-            var result = _controller.Bilatu(null, null);
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            _repoMock.Verify(r => r.Bilatu(null, null), Times.Once);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_DataOkerrarekin_BadRequestObjectResultItzultzenDu()
-        {
-            var result = _controller.Bilatu("okerra", null);
-
-            AssertBadRequestMessage(result, "data ez da zuzena");
-            _repoMock.Verify(r => r.Bilatu(It.IsAny<DateTime?>(), It.IsAny<TimeSpan?>()), Times.Never);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_OrduaOkerrarekin_BadRequestObjectResultItzultzenDu()
-        {
-            var result = _controller.Bilatu("2026-05-04", "okerra");
-
-            AssertBadRequestMessage(result, "ordua ez da zuzena");
-            _repoMock.Verify(r => r.Bilatu(It.IsAny<DateTime?>(), It.IsAny<TimeSpan?>()), Times.Never);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_DataBaliozkoarekin_OkObjectResultItzultzenDu()
-        {
-            var data = new DateTime(2026, 5, 4);
-            _repoMock.Setup(r => r.Bilatu(It.IsAny<DateTime?>(), null)).Returns(new List<Erreserbak> { Erreserba(1) });
-
-            var result = _controller.Bilatu("2026-05-04", null);
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            _repoMock.Verify(r => r.Bilatu(data, null), Times.Once);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_OrduaBaliozkoarekin_OkObjectResultItzultzenDu()
-        {
-            var ordua = new TimeSpan(14, 30, 0);
-            _repoMock.Setup(r => r.Bilatu(null, It.IsAny<TimeSpan?>())).Returns(new List<Erreserbak> { Erreserba(1) });
-
-            var result = _controller.Bilatu(null, "14:30");
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            _repoMock.Verify(r => r.Bilatu(null, ordua), Times.Once);
-        }
-
-        [Fact]
-        public void ErreserbakController_Bilatu_DataEtaOrduaBaliozkoekin_OkObjectResultItzultzenDu()
-        {
-            var data = new DateTime(2026, 5, 4);
-            var ordua = new TimeSpan(14, 30, 0);
-            _repoMock.Setup(r => r.Bilatu(It.IsAny<DateTime?>(), It.IsAny<TimeSpan?>())).Returns(new List<Erreserbak> { Erreserba(1) });
-
-            var result = _controller.Bilatu("2026-05-04", "14:30");
-
-            var lista = AssertOkEnumerable<ErreserbakDto>(result);
-            Assert.Single(lista);
-            _repoMock.Verify(r => r.Bilatu(data, ordua), Times.Once);
+            Assert.Throws<Exception>(() => _controller.Ezabatu(1));
         }
     }
 }

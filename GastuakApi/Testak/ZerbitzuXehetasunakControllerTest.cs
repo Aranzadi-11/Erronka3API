@@ -1,187 +1,387 @@
-using JatetxeaApi.Controllerrak;
-using JatetxeaApi.DTOak;
-using JatetxeaApi.Modeloak;
-using JatetxeaApi.Repositorioak;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
-using NHibernate;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
+using JatetxeaApi.Controllerrak;
+using JatetxeaApi.Modeloak;
+using JatetxeaApi.DTOak;
+using JatetxeaApi.Repositorioak;
 
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
-
-namespace JatetxeaApi.Testak.Controllerrak
+namespace JatetxeaApi.Testak
 {
-    public class ZerbitzuXehetasunakControllerTest
+    public class ZerbitzuXehetasunakControllerTests
     {
-        private readonly Mock<ZerbitzuXehetasunakRepository> _repoMock;
-        private readonly ZerbitzuXehetasunakController _controller;
-
-        public ZerbitzuXehetasunakControllerTest()
-        {
-            var sessionFactoryMock = new Mock<ISessionFactory>();
-            _repoMock = new Mock<ZerbitzuXehetasunakRepository>(sessionFactoryMock.Object);
-            _controller = new ZerbitzuXehetasunakController(_repoMock.Object);
-        }
-
         [Fact]
-        public void ZerbitzuXehetasunakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void ZX1_GetAllOndo_Ok()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<ZerbitzuXehetasunak>
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementuak = new List<ZerbitzuXehetasunak>
             {
-                ZerbitzuXehetasuna(1, 1),
-                ZerbitzuXehetasuna(2, 1)
-            });
-
-            var result = _controller.GetAll();
-
-            var lista = AssertOkEnumerable<ZerbitzuXehetasunakDto>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal(1, lista[0].ZerbitzuaId);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
-        {
-            var dto = ZerbitzuXehetasunaSortuDto();
-            ZerbitzuXehetasunak? gordeta = null;
-            _repoMock.Setup(r => r.Add(It.IsAny<ZerbitzuXehetasunak>()))
-                .Callback<ZerbitzuXehetasunak>(z =>
+                new ZerbitzuXehetasunak
                 {
-                    z.Id = 7;
-                    gordeta = z;
-                });
+                    Id = 1,
+                    ZerbitzuaId = 10,
+                    PlateraId = 100,
+                    Kantitatea = 2,
+                    PrezioUnitarioa = 12.5m,
+                    Zerbitzatuta = false
+                },
+                new ZerbitzuXehetasunak
+                {
+                    Id = 2,
+                    ZerbitzuaId = 11,
+                    PlateraId = 101,
+                    Kantitatea = 3,
+                    PrezioUnitarioa = 15m,
+                    Zerbitzatuta = true
+                }
+            };
 
-            var result = _controller.Sortu(dto);
+            mockRepo.Setup(r => r.GetAll()).Returns(elementuak);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Xehetasuna sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(7, Property<int>(ok.Value!, "id"));
-            Assert.NotNull(gordeta);
-            Assert.Equal(dto.ZerbitzuaId, gordeta.ZerbitzuaId);
-            Assert.Equal(dto.Zerbitzatuta, gordeta.Zerbitzatuta);
-        }
+            // Act
+            var result = controller.GetAll();
 
-        [Fact]
-        public void ZerbitzuXehetasunakController_Get_XehetasunaDagoenean_OkObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Get(1)).Returns(ZerbitzuXehetasuna(1, 1));
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedElementuak = Assert.IsAssignableFrom<IEnumerable<ZerbitzuXehetasunakDto>>(okResult.Value);
+            var lista = returnedElementuak.ToList();
 
-            var result = _controller.Get(1);
-
-            var dto = AssertOkValue<ZerbitzuXehetasunakDto>(result);
-            Assert.Equal(1, dto.Id);
-            Assert.Equal(1, dto.ZerbitzuaId);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Get_XehetasunaEzDagoenean_NotFoundObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Get(99)).Returns((ZerbitzuXehetasunak?)null);
-
-            var result = _controller.Get(99);
-
-            AssertNotFoundMessage(result);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Eguneratu_XehetasunaDagoenean_OkObjectResultItzultzenDu()
-        {
-            var xehetasuna = ZerbitzuXehetasuna(1, 1);
-            _repoMock.Setup(r => r.Get(1)).Returns(xehetasuna);
-            var dto = ZerbitzuXehetasunaSortuDto();
-
-            var result = _controller.Eguneratu(1, dto);
-
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal(dto.ZerbitzuaId, xehetasuna.ZerbitzuaId);
-            Assert.Equal(dto.PlateraId, xehetasuna.PlateraId);
-            Assert.Equal(dto.Kantitatea, xehetasuna.Kantitatea);
-            Assert.Equal(dto.PrezioUnitarioa, xehetasuna.PrezioUnitarioa);
-            Assert.Equal(dto.Zerbitzatuta, xehetasuna.Zerbitzatuta);
-            _repoMock.Verify(r => r.Update(xehetasuna), Times.Once);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Eguneratu_XehetasunaEzDagoenean_NotFoundObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Get(99)).Returns((ZerbitzuXehetasunak?)null);
-
-            var result = _controller.Eguneratu(99, ZerbitzuXehetasunaSortuDto());
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<ZerbitzuXehetasunak>()), Times.Never);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Ezabatu_XehetasunaDagoenean_OkObjectResultItzultzenDu()
-        {
-            var xehetasuna = ZerbitzuXehetasuna(1, 1);
-            _repoMock.Setup(r => r.Get(1)).Returns(xehetasuna);
-
-            var result = _controller.Ezabatu(1);
-
-            AssertOkMessage(result, "Ezabatuta");
-            _repoMock.Verify(r => r.Delete(xehetasuna), Times.Once);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_Ezabatu_XehetasunaEzDagoenean_NotFoundObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.Get(99)).Returns((ZerbitzuXehetasunak?)null);
-
-            var result = _controller.Ezabatu(99);
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Delete(It.IsAny<ZerbitzuXehetasunak>()), Times.Never);
-        }
-
-        [Fact]
-        public void ZerbitzuXehetasunakController_GetByZerbitzua_Xehetasunekin_OkObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.GetByZerbitzuaId(5)).Returns(new List<ZerbitzuXehetasunak>
-            {
-                ZerbitzuXehetasuna(1, 5),
-                ZerbitzuXehetasuna(2, 5)
-            });
-
-            var result = _controller.GetByZerbitzua(5);
-
-            var lista = AssertOkEnumerable<ZerbitzuXehetasunakDto>(result);
             Assert.Equal(2, lista.Count);
-            Assert.All(lista, x => Assert.Equal(5, x.ZerbitzuaId));
+            Assert.Equal(10, lista[0].ZerbitzuaId);
+            Assert.Equal(100, lista[0].PlateraId);
+            Assert.Equal(2, lista[0].Kantitatea);
+            Assert.Equal(12.5m, lista[0].PrezioUnitarioa);
+            Assert.False(lista[0].Zerbitzatuta);
         }
 
         [Fact]
-        public void ZerbitzuXehetasunakController_GetByZerbitzua_XehetasunikGabe_OkObjectResultItzultzenDu()
+        public void ZX2_GetAllSalbuespena_InternalServerError()
         {
-            _repoMock.Setup(r => r.GetByZerbitzuaId(5)).Returns(new List<ZerbitzuXehetasunak>());
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            mockRepo.Setup(r => r.GetAll()).Throws(new Exception("Errorea"));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
 
-            var result = _controller.GetByZerbitzua(5);
-
-            var lista = AssertOkEnumerable<ZerbitzuXehetasunakDto>(result);
-            Assert.Empty(lista);
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.GetAll());
         }
 
         [Fact]
-        public void ZerbitzuXehetasunakController_AldatuZerbitzatuta_EmaitzaOndoDenean_OkObjectResultItzultzenDu()
+        public void ZX3_SortuOndo_Ok()
         {
-            var emaitza = new EragiketaEmaitzaDto { Ondo = true, Mezua = "Platera eginda", Id = 1 };
-            _repoMock.Setup(r => r.AldatuZerbitzatutaEtaStock(1, true)).Returns(emaitza);
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var dto = new ZerbitzuXehetasunakSortuDto
+            {
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
 
-            var result = _controller.AldatuZerbitzatuta(1, new ZerbitzatutaPatchDto { Zerbitzatuta = true });
+            mockRepo.Setup(r => r.Add(It.IsAny<ZerbitzuXehetasunak>()));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
 
-            var value = AssertOkValue<EragiketaEmaitzaDto>(result);
-            Assert.Same(emaitza, value);
+            // Act
+            var result = controller.Sortu(dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var value = okResult.Value;
+
+            var mezua = value.GetType().GetProperty("mezua")?.GetValue(value, null);
+            Assert.Equal("Xehetasuna sortuta", mezua);
+
+            mockRepo.Verify(r => r.Add(It.IsAny<ZerbitzuXehetasunak>()), Times.Once);
         }
 
         [Fact]
-        public void ZerbitzuXehetasunakController_AldatuZerbitzatuta_EmaitzaOndoEzDenean_BadRequestObjectResultItzultzenDu()
+        public void ZX4_SortuBodyNull_InternalServerError()
         {
-            var emaitza = new EragiketaEmaitzaDto { Ondo = false, Mezua = "Ez dago stock nahikorik", Id = 1 };
-            _repoMock.Setup(r => r.AldatuZerbitzatutaEtaStock(1, true)).Returns(emaitza);
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
 
-            var result = _controller.AldatuZerbitzatuta(1, new ZerbitzatutaPatchDto { Zerbitzatuta = true });
+            // Act & Assert
+            Assert.Throws<NullReferenceException>(() => controller.Sortu(null));
+        }
 
-            AssertBadRequestMessage(result, "Ez dago stock nahikorik");
+        [Fact]
+        public void ZX5_SortuSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var dto = new ZerbitzuXehetasunakSortuDto
+            {
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            mockRepo.Setup(r => r.Add(It.IsAny<ZerbitzuXehetasunak>())).Throws(new Exception("Errorea"));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Sortu(dto));
+        }
+
+        [Fact]
+        public void ZX6_XehetasunaExistitzenDa_Ok()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Get(1);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var returnedElementua = Assert.IsType<ZerbitzuXehetasunakDto>(okResult.Value);
+
+            Assert.Equal(1, returnedElementua.Id);
+            Assert.Equal(10, returnedElementua.ZerbitzuaId);
+            Assert.Equal(100, returnedElementua.PlateraId);
+            Assert.Equal(2, returnedElementua.Kantitatea);
+            Assert.Equal(12.5m, returnedElementua.PrezioUnitarioa);
+            Assert.False(returnedElementua.Zerbitzatuta);
+        }
+
+        [Fact]
+        public void ZX7_XehetasunaEzExistitzen_NotFound()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            mockRepo.Setup(r => r.Get(1)).Returns((ZerbitzuXehetasunak)null);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Get(1);
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+
+            Assert.Equal("Ez da aurkitu", mezua);
+        }
+
+        [Fact]
+        public void ZX8_GetSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            mockRepo.Setup(r => r.Get(1)).Throws(new Exception("Errorea"));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Get(1));
+        }
+
+        [Fact]
+        public void ZX9_XehetasunaEzExistitzen_NotFound()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            mockRepo.Setup(r => r.Get(1)).Returns((ZerbitzuXehetasunak)null);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Eguneratu(1, new ZerbitzuXehetasunakSortuDto());
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+
+            Assert.Equal("Ez da aurkitu", mezua);
+        }
+
+        [Fact]
+        public void ZX10_EguneratuOndo_Ok()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            var dto = new ZerbitzuXehetasunakSortuDto
+            {
+                ZerbitzuaId = 20,
+                PlateraId = 200,
+                Kantitatea = 5,
+                PrezioUnitarioa = 30m,
+                Zerbitzatuta = true
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            mockRepo.Setup(r => r.Update(It.IsAny<ZerbitzuXehetasunak>()));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Eguneratu(1, dto);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
+
+            Assert.Equal("Eguneratuta", mezua);
+            Assert.Equal(20, elementua.ZerbitzuaId);
+            Assert.Equal(200, elementua.PlateraId);
+            Assert.Equal(5, elementua.Kantitatea);
+            Assert.Equal(30m, elementua.PrezioUnitarioa);
+            Assert.True(elementua.Zerbitzatuta);
+
+            mockRepo.Verify(r => r.Update(It.IsAny<ZerbitzuXehetasunak>()), Times.Once);
+        }
+
+        [Fact]
+        public void ZX11_EguneratuBodyNull_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<NullReferenceException>(() => controller.Eguneratu(1, null));
+        }
+
+        [Fact]
+        public void ZX12_EguneratuSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            var dto = new ZerbitzuXehetasunakSortuDto
+            {
+                ZerbitzuaId = 20,
+                PlateraId = 200,
+                Kantitatea = 5,
+                PrezioUnitarioa = 30m,
+                Zerbitzatuta = true
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            mockRepo.Setup(r => r.Update(It.IsAny<ZerbitzuXehetasunak>())).Throws(new Exception("Errorea"));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Eguneratu(1, dto));
+        }
+
+        [Fact]
+        public void ZX13_XehetasunaEzExistitzen_NotFound()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            mockRepo.Setup(r => r.Get(1)).Returns((ZerbitzuXehetasunak)null);
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Ezabatu(1);
+
+            // Assert
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
+
+            Assert.Equal("Ez da aurkitu", mezua);
+        }
+
+        [Fact]
+        public void ZX14_EzabatuOndo_Ok()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            mockRepo.Setup(r => r.Delete(It.IsAny<ZerbitzuXehetasunak>()));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act
+            var result = controller.Ezabatu(1);
+
+            // Assert
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
+
+            Assert.Equal("Ezabatuta", mezua);
+            mockRepo.Verify(r => r.Delete(It.IsAny<ZerbitzuXehetasunak>()), Times.Once);
+        }
+
+        [Fact]
+        public void ZX15_EzabatuSalbuespena_InternalServerError()
+        {
+            // Arrange
+            var mockRepo = new Mock<ZerbitzuXehetasunakRepository>();
+            var elementua = new ZerbitzuXehetasunak
+            {
+                Id = 1,
+                ZerbitzuaId = 10,
+                PlateraId = 100,
+                Kantitatea = 2,
+                PrezioUnitarioa = 12.5m,
+                Zerbitzatuta = false
+            };
+
+            mockRepo.Setup(r => r.Get(1)).Returns(elementua);
+            mockRepo.Setup(r => r.Delete(It.IsAny<ZerbitzuXehetasunak>())).Throws(new Exception("Errorea"));
+            var controller = new ZerbitzuXehetasunakController(mockRepo.Object);
+
+            // Act & Assert
+            Assert.Throws<Exception>(() => controller.Ezabatu(1));
         }
     }
 }

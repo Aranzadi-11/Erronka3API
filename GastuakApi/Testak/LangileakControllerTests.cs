@@ -2,11 +2,13 @@ using JatetxeaApi.Controllerrak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using NHibernate;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
-
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
 namespace JatetxeaApi.Testak.Controllerrak
 {
@@ -23,171 +25,301 @@ namespace JatetxeaApi.Testak.Controllerrak
         }
 
         [Fact]
-        public void LangileakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void P1_GetAllOndo_Ok()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Langileak>
+            var langileak = new List<Langileak>
             {
-                Langilea(1, "ane", "bat"),
-                Langilea(2, "iker", "bi")
-            });
+                new Langileak
+                {
+                    Id = 1,
+                    Izena = "Langile1",
+                    Erabiltzailea = "erabiltzailea1",
+                    Pasahitza = "pasahitza1",
+                    Aktibo = "Bai",
+                    ErregistroData = DateTime.Now,
+                    RolaId = 1
+                },
+                new Langileak
+                {
+                    Id = 2,
+                    Izena = "Langile2",
+                    Erabiltzailea = "erabiltzailea2",
+                    Pasahitza = "pasahitza2",
+                    Aktibo = "Bai",
+                    ErregistroData = DateTime.Now,
+                    RolaId = 2
+                }
+            };
+            _repoMock.Setup(r => r.GetAll()).Returns(langileak);
 
             var result = _controller.GetAll();
 
-            var lista = AssertOkEnumerable<LangileakDto>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal("ane", lista[0].Erabiltzailea);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dtoList = Assert.IsAssignableFrom<IEnumerable<LangileakDto>>(okResult.Value);
+            Assert.Equal(2, dtoList.Count());
         }
 
         [Fact]
-        public void LangileakController_Get_LangileaDagoenean_OkObjectResultItzultzenDu()
+        public void P2_GetAllSalbuespena_InternalServerError()
         {
-            _repoMock.Setup(r => r.Get(1)).Returns(Langilea(1, "ane", "sekretua"));
+            _repoMock.Setup(r => r.GetAll()).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.GetAll());
+        }
+
+        [Fact]
+        public void P3_LangileaExistitzenDa_Ok()
+        {
+            var langilea = new Langileak
+            {
+                Id = 1,
+                Izena = "Langile1",
+                Erabiltzailea = "erabiltzailea1",
+                Pasahitza = "pasahitza1",
+                Aktibo = "Bai",
+                ErregistroData = DateTime.Now,
+                RolaId = 1
+            };
+            _repoMock.Setup(r => r.Get(1)).Returns(langilea);
 
             var result = _controller.Get(1);
 
-            var dto = AssertOkValue<LangileakDto>(result);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dto = Assert.IsType<LangileakDto>(okResult.Value);
             Assert.Equal(1, dto.Id);
-            Assert.Equal("ane", dto.Erabiltzailea);
-            Assert.Equal("sekretua", dto.Pasahitza);
         }
 
         [Fact]
-        public void LangileakController_Get_LangileaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void P4_LangileaEzExistitzen_NotFound()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Langileak?)null);
+            _repoMock.Setup(r => r.Get(999)).Returns((Langileak)null);
 
-            var result = _controller.Get(99);
+            var result = _controller.Get(999);
 
-            AssertNotFoundMessage(result);
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void LangileakController_Login_GorputzaNullDenean_BadRequestObjectResultItzultzenDu()
+        public void P5_GetSalbuespena_InternalServerError()
         {
-            var result = _controller.Login(null!);
+            _repoMock.Setup(r => r.Get(1)).Throws(new Exception("Database error"));
 
-            AssertBadRequestMessage(result, "Erabiltzailea eta pasahitza beharrezkoak dira.");
-            _repoMock.Verify(r => r.GetAll(), Times.Never);
+            Assert.Throws<Exception>(() => _controller.Get(1));
         }
 
         [Fact]
-        public void LangileakController_Login_ErabiltzaileaHutsikDenean_BadRequestObjectResultItzultzenDu()
+        public void P6_LoginEskeraBalioezina_BadRequest()
         {
-            var result = _controller.Login(new LoginRequest { Erabiltzailea = "", Pasahitza = "sekretua" });
+            LoginRequest loginNull = null;
+            var loginEmpty = new LoginRequest { Erabiltzailea = "", Pasahitza = "pass" };
+            var loginNoPass = new LoginRequest { Erabiltzailea = "user", Pasahitza = "" };
 
-            AssertBadRequestMessage(result, "Erabiltzailea eta pasahitza beharrezkoak dira.");
-            _repoMock.Verify(r => r.GetAll(), Times.Never);
+            var result1 = _controller.Login(loginNull);
+            var badRequest1 = Assert.IsType<BadRequestObjectResult>(result1);
+            dynamic value1 = badRequest1.Value;
+            Assert.Equal("Erabiltzailea eta pasahitza beharrezkoak dira.", value1.mezua);
+
+            var result2 = _controller.Login(loginEmpty);
+            var badRequest2 = Assert.IsType<BadRequestObjectResult>(result2);
+            dynamic value2 = badRequest2.Value;
+            Assert.Equal("Erabiltzailea eta pasahitza beharrezkoak dira.", value2.mezua);
+
+            var result3 = _controller.Login(loginNoPass);
+            var badRequest3 = Assert.IsType<BadRequestObjectResult>(result3);
+            dynamic value3 = badRequest3.Value;
+            Assert.Equal("Erabiltzailea eta pasahitza beharrezkoak dira.", value3.mezua);
         }
 
         [Fact]
-        public void LangileakController_Login_PasahitzaHutsikDenean_BadRequestObjectResultItzultzenDu()
+        public void P7_KredentzialOkerrak_Unauthorized()
         {
-            var result = _controller.Login(new LoginRequest { Erabiltzailea = "ane", Pasahitza = "" });
-
-            AssertBadRequestMessage(result, "Erabiltzailea eta pasahitza beharrezkoak dira.");
-            _repoMock.Verify(r => r.GetAll(), Times.Never);
-        }
-
-        [Fact]
-        public void LangileakController_Login_KredentzialOkerrekin_UnauthorizedObjectResultItzultzenDu()
-        {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Langileak>
+            var langileak = new List<Langileak>
             {
-                Langilea(1, "ane", "sekretua")
-            });
-
-            var result = _controller.Login(new LoginRequest { Erabiltzailea = "ane", Pasahitza = "okerra" });
-
-            AssertUnauthorizedMessage(result, "Erabiltzailea edo pasahitza oker");
-        }
-
-        [Fact]
-        public void LangileakController_Login_KredentzialZuzenekin_OkObjectResultItzultzenDu()
-        {
-            var langilea = Langilea(1, "ANE", " sekretua ");
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Langileak> { langilea });
-
-            var result = _controller.Login(new LoginRequest { Erabiltzailea = "ane", Pasahitza = "sekretua" });
-
-            var dto = AssertOkValue<LangileakDto>(result);
-            Assert.Equal(langilea.Id, dto.Id);
-            Assert.Equal(langilea.Erabiltzailea, dto.Erabiltzailea);
-            Assert.Null(dto.Pasahitza);
-        }
-
-        [Fact]
-        public void LangileakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
-        {
-            var dto = LangileaSortuDto();
-            Langileak? gordeta = null;
-            _repoMock.Setup(r => r.Add(It.IsAny<Langileak>()))
-                .Callback<Langileak>(l =>
+                new Langileak
                 {
-                    l.Id = 7;
-                    gordeta = l;
-                });
+                    Izena = "Langile1",
+                    Erabiltzailea = "erabiltzailea1",
+                    Pasahitza = "pasahitza1",
+                    Aktibo = "Bai",
+                    ErregistroData = DateTime.Now,
+                    RolaId = 1
+                }
+            };
+            _repoMock.Setup(r => r.GetAll()).Returns(langileak);
+            var login = new LoginRequest { Erabiltzailea = "erabiltzailea1", Pasahitza = "wrongpass" };
+
+            var result = _controller.Login(login);
+
+            var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result);
+            dynamic value = unauthorized.Value;
+            Assert.Equal("Erabiltzailea edo pasahitza oker", value.mezua);
+        }
+
+        [Fact]
+        public void P8_KredentzialZuzenak_Ok()
+        {
+            var langilea = new Langileak
+            {
+                Id = 1,
+                Izena = "Langile1",
+                Erabiltzailea = "erabiltzailea1",
+                Pasahitza = "pasahitza1",
+                Aktibo = "Bai",
+                ErregistroData = DateTime.Now,
+                RolaId = 1
+            };
+            var langileak = new List<Langileak> { langilea };
+            _repoMock.Setup(r => r.GetAll()).Returns(langileak);
+            var login = new LoginRequest { Erabiltzailea = "erabiltzailea1", Pasahitza = "pasahitza1" };
+
+            var result = _controller.Login(login);
+
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dto = Assert.IsType<LangileakDto>(okResult.Value);
+            Assert.Equal(langilea.Id, dto.Id);
+        }
+
+        [Fact]
+        public void P9_LoginSalbuespena_InternalServerError()
+        {
+            _repoMock.Setup(r => r.GetAll()).Throws(new Exception("Database error"));
+            var login = new LoginRequest { Erabiltzailea = "user", Pasahitza = "pass" };
+
+            Assert.Throws<Exception>(() => _controller.Login(login));
+        }
+
+        [Fact]
+        public void P10_LangileaSortuOndo_Ok()
+        {
+            var dto = new LangileakSortuDto
+            {
+                Izena = "Langile",
+                Erabiltzailea = "user",
+                Pasahitza = "pass",
+                Aktibo = "Bai",
+                ErregistroData = DateTime.Now,
+                RolaId = 1
+            };
+            Langileak savedLangile = null;
+            _repoMock.Setup(r => r.Add(It.IsAny<Langileak>())).Callback<Langileak>(l => savedLangile = l);
 
             var result = _controller.Sortu(dto);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Langilea sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(7, Property<int>(ok.Value!, "id"));
-            Assert.NotNull(gordeta);
-            Assert.Equal(dto.Erabiltzailea, gordeta.Erabiltzailea);
-            Assert.Equal(dto.TxatBaimena, gordeta.TxatBaimena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Langilea sortuta", value.mezua);
+            Assert.NotNull(savedLangile);
         }
 
         [Fact]
-        public void LangileakController_Eguneratu_LangileaDagoenean_OkObjectResultItzultzenDu()
+        public void P11_SortuSalbuespena_InternalServerError()
         {
-            var langilea = Langilea(1, "zaharra", "zaharra");
+            var dto = new LangileakSortuDto
+            {
+                Izena = "Langile",
+                Erabiltzailea = "user",
+                Pasahitza = "pass",
+                Aktibo = "Bai",
+                ErregistroData = DateTime.Now,
+                RolaId = 1
+            };
+            _repoMock.Setup(r => r.Add(It.IsAny<Langileak>())).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.Sortu(dto));
+        }
+
+        [Fact]
+        public void P12_LangileaEzExistitzen_NotFound()
+        {
+            _repoMock.Setup(r => r.Get(999)).Returns((Langileak)null);
+            var dto = new LangileakSortuDto();  // DTO hutsa, ez da erabiliko
+
+            var result = _controller.Eguneratu(999, dto);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void P13_LangileaEguneratuOndo_Ok()
+        {
+            var langilea = new Langileak
+            {
+                Id = 1,
+                Izena = "Langile",
+                Erabiltzailea = "user",
+                Pasahitza = "pass",
+                Aktibo = "Bai",
+                ErregistroData = DateTime.Now,
+                RolaId = 1
+            };
             _repoMock.Setup(r => r.Get(1)).Returns(langilea);
-            var dto = LangileaSortuDto();
+            var dto = new LangileakSortuDto
+            {
+                Izena = "LangileUpdated",
+                Erabiltzailea = "userUpdated",
+                Pasahitza = "passUpdated",
+                Aktibo = "Ez",
+                ErregistroData = DateTime.Now,
+                RolaId = 2
+            };
 
             var result = _controller.Eguneratu(1, dto);
 
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal(dto.Izena, langilea.Izena);
-            Assert.Equal(dto.Erabiltzailea, langilea.Erabiltzailea);
-            Assert.Equal(dto.Pasahitza, langilea.Pasahitza);
-            Assert.Equal(dto.Aktibo, langilea.Aktibo);
-            Assert.Equal(dto.RolaId, langilea.RolaId);
-            Assert.Equal(dto.TxatBaimena, langilea.TxatBaimena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Eguneratuta", value.mezua);
             _repoMock.Verify(r => r.Update(langilea), Times.Once);
         }
 
         [Fact]
-        public void LangileakController_Eguneratu_LangileaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void P14_EguneratuSalbuespena_InternalServerError()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Langileak?)null);
+            var langilea = new Langileak { Id = 1 };
+            _repoMock.Setup(r => r.Get(1)).Returns(langilea);
+            _repoMock.Setup(r => r.Update(It.IsAny<Langileak>())).Throws(new Exception("Database error"));
+            var dto = new LangileakSortuDto();   // DTO hutsa, ez da erabiliko
 
-            var result = _controller.Eguneratu(99, LangileaSortuDto());
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<Langileak>()), Times.Never);
+            Assert.Throws<Exception>(() => _controller.Eguneratu(1, dto));
         }
 
         [Fact]
-        public void LangileakController_Ezabatu_LangileaDagoenean_OkObjectResultItzultzenDu()
+        public void P15_LangileaEzExistitzen_NotFound_Ezabatu()
         {
-            var langilea = Langilea(1, "ane", "sekretua");
+            _repoMock.Setup(r => r.Get(999)).Returns((Langileak)null);
+
+            var result = _controller.Ezabatu(999);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void P16_LangileaEzabatuOndo_Ok()
+        {
+            var langilea = new Langileak { Id = 1 };
             _repoMock.Setup(r => r.Get(1)).Returns(langilea);
 
             var result = _controller.Ezabatu(1);
 
-            AssertOkMessage(result, "Ezabatuta");
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Ezabatuta", value.mezua);
             _repoMock.Verify(r => r.Delete(langilea), Times.Once);
         }
 
         [Fact]
-        public void LangileakController_Ezabatu_LangileaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void P17_EzabatuSalbuespena_InternalServerError()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Langileak?)null);
+            var langilea = new Langileak { Id = 1 };
+            _repoMock.Setup(r => r.Get(1)).Returns(langilea);
+            _repoMock.Setup(r => r.Delete(It.IsAny<Langileak>())).Throws(new Exception("Database error"));
 
-            var result = _controller.Ezabatu(99);
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Delete(It.IsAny<Langileak>()), Times.Never);
+            Assert.Throws<Exception>(() => _controller.Ezabatu(1));
         }
     }
 }

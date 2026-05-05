@@ -1,12 +1,15 @@
+// KategoriaControllerTests.cs
 using JatetxeaApi.Controllerrak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
+using Microsoft.AspNetCore.Mvc;
 using Moq;
 using NHibernate;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
-
-using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
 namespace JatetxeaApi.Testak.Controllerrak
 {
@@ -23,110 +26,180 @@ namespace JatetxeaApi.Testak.Controllerrak
         }
 
         [Fact]
-        public void KategoriaController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        public void K1_KontsultaOndo_KategoriakItzultzenDu()
         {
-            _repoMock.Setup(r => r.GetAll()).Returns(new List<Kategoria>
+            var kategoriak = new List<Kategoria>
             {
-                Kategoria(1, "Edariak"),
-                Kategoria(2, "Postreak")
-            });
+                new Kategoria { Id = 1, Izena = "Hasierakoak" },
+                new Kategoria { Id = 2, Izena = "Postreak" }
+            };
+
+            _repoMock.Setup(r => r.GetAll()).Returns(kategoriak);
 
             var result = _controller.GetAll();
 
-            var lista = AssertOkEnumerable<KategoriaDto>(result);
-            Assert.Equal(2, lista.Count);
-            Assert.Equal("Edariak", lista[0].Izena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dtoList = Assert.IsAssignableFrom<IEnumerable<KategoriaDto>>(okResult.Value);
+            Assert.Equal(2, dtoList.Count());
         }
 
         [Fact]
-        public void KategoriaController_Get_KategoriaDagoenean_OkObjectResultItzultzenDu()
+        public void K2_KontsultaSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(1)).Returns(Kategoria(1, "Edariak"));
+            _repoMock.Setup(r => r.GetAll()).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.GetAll());
+        }
+
+        [Fact]
+        public void K3_KategoriaExistitzenDa_Ok()
+        {
+            var kategoria = new Kategoria { Id = 1, Izena = "Hasierakoak" };
+            _repoMock.Setup(r => r.Get(1)).Returns(kategoria);
 
             var result = _controller.Get(1);
 
-            var dto = AssertOkValue<KategoriaDto>(result);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            var dto = Assert.IsType<KategoriaDto>(okResult.Value);
             Assert.Equal(1, dto.Id);
-            Assert.Equal("Edariak", dto.Izena);
+            Assert.Equal("Hasierakoak", dto.Izena);
         }
 
         [Fact]
-        public void KategoriaController_Get_KategoriaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void K4_KategoriaEzExistitzen_NotFound()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Kategoria?)null);
+            _repoMock.Setup(r => r.Get(999)).Returns((Kategoria)null);
 
-            var result = _controller.Get(99);
+            var result = _controller.Get(999);
 
-            AssertNotFoundMessage(result);
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
         }
 
         [Fact]
-        public void KategoriaController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
+        public void K5_GetSalbuespena_Propagatu()
         {
-            var dto = KategoriaSortuDto("Gosariak");
-            Kategoria? gordeta = null;
+            _repoMock.Setup(r => r.Get(1)).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.Get(1));
+        }
+
+        [Fact]
+        public void K6_SorreraOndo_Ok()
+        {
+            var dto = new KategoriaSortuDto
+            {
+                Izena = "Edariak"
+            };
+
+            Kategoria saved = null;
             _repoMock.Setup(r => r.Add(It.IsAny<Kategoria>()))
                 .Callback<Kategoria>(k =>
                 {
-                    k.Id = 7;
-                    gordeta = k;
+                    k.Id = 5;
+                    saved = k;
                 });
 
             var result = _controller.Sortu(dto);
 
-            var ok = AssertOk(result);
-            Assert.Equal("Kategoria sortuta", Property<string>(ok.Value!, "mezua"));
-            Assert.Equal(7, Property<int>(ok.Value!, "id"));
-            Assert.NotNull(gordeta);
-            Assert.Equal("Gosariak", gordeta.Izena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Kategoria sortuta", value.mezua);
+            Assert.Equal(5, (int)value.id);
+            Assert.NotNull(saved);
+            Assert.Equal("Edariak", saved.Izena);
         }
 
         [Fact]
-        public void KategoriaController_Eguneratu_KategoriaDagoenean_OkObjectResultItzultzenDu()
+        public void K7_SorreraSalbuespena_Propagatu()
         {
-            var kategoria = Kategoria(1, "Zaharra");
+            var dto = new KategoriaSortuDto
+            {
+                Izena = "Edariak"
+            };
+
+            _repoMock.Setup(r => r.Add(It.IsAny<Kategoria>())).Throws(new Exception("Database error"));
+
+            Assert.Throws<Exception>(() => _controller.Sortu(dto));
+        }
+
+        [Fact]
+        public void K8_KategoriaEzExistitzenEguneratu_NotFound()
+        {
+            _repoMock.Setup(r => r.Get(999)).Returns((Kategoria)null);
+            var dto = new KategoriaSortuDto { Izena = "Berria" };
+
+            var result = _controller.Eguneratu(999, dto);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void K9_EguneratzeOndo_Ok()
+        {
+            var kategoria = new Kategoria { Id = 1, Izena = "Hasierakoak" };
             _repoMock.Setup(r => r.Get(1)).Returns(kategoria);
-            var dto = KategoriaSortuDto("Berria");
+
+            var dto = new KategoriaSortuDto { Izena = "Plater nagusiak" };
 
             var result = _controller.Eguneratu(1, dto);
 
-            AssertOkMessage(result, "Eguneratuta");
-            Assert.Equal("Berria", kategoria.Izena);
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Eguneratuta", value.mezua);
+            Assert.Equal("Plater nagusiak", kategoria.Izena);
             _repoMock.Verify(r => r.Update(kategoria), Times.Once);
         }
 
         [Fact]
-        public void KategoriaController_Eguneratu_KategoriaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void K10_EguneratzeSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Kategoria?)null);
+            var kategoria = new Kategoria { Id = 1, Izena = "Hasierakoak" };
+            _repoMock.Setup(r => r.Get(1)).Returns(kategoria);
+            _repoMock.Setup(r => r.Update(It.IsAny<Kategoria>())).Throws(new Exception("Database error"));
 
-            var result = _controller.Eguneratu(99, KategoriaSortuDto());
+            var dto = new KategoriaSortuDto { Izena = "Plater nagusiak" };
 
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Update(It.IsAny<Kategoria>()), Times.Never);
+            Assert.Throws<Exception>(() => _controller.Eguneratu(1, dto));
         }
 
         [Fact]
-        public void KategoriaController_Ezabatu_KategoriaDagoenean_OkObjectResultItzultzenDu()
+        public void K11_KategoriaEzExistitzenEzabatu_NotFound()
         {
-            var kategoria = Kategoria(1, "Edariak");
+            _repoMock.Setup(r => r.Get(999)).Returns((Kategoria)null);
+
+            var result = _controller.Ezabatu(999);
+
+            var notFound = Assert.IsType<NotFoundObjectResult>(result);
+            dynamic value = notFound.Value;
+            Assert.Equal("Ez da aurkitu", value.mezua);
+        }
+
+        [Fact]
+        public void K12_EzabatzeOndo_Ok()
+        {
+            var kategoria = new Kategoria { Id = 1, Izena = "Hasierakoak" };
             _repoMock.Setup(r => r.Get(1)).Returns(kategoria);
 
             var result = _controller.Ezabatu(1);
 
-            AssertOkMessage(result, "Ezabatuta");
+            var okResult = Assert.IsType<OkObjectResult>(result);
+            dynamic value = okResult.Value;
+            Assert.Equal("Ezabatuta", value.mezua);
             _repoMock.Verify(r => r.Delete(kategoria), Times.Once);
         }
 
         [Fact]
-        public void KategoriaController_Ezabatu_KategoriaEzDagoenean_NotFoundObjectResultItzultzenDu()
+        public void K13_EzabatzeSalbuespena_Propagatu()
         {
-            _repoMock.Setup(r => r.Get(99)).Returns((Kategoria?)null);
+            var kategoria = new Kategoria { Id = 1, Izena = "Hasierakoak" };
+            _repoMock.Setup(r => r.Get(1)).Returns(kategoria);
+            _repoMock.Setup(r => r.Delete(It.IsAny<Kategoria>())).Throws(new Exception("Database error"));
 
-            var result = _controller.Ezabatu(99);
-
-            AssertNotFoundMessage(result);
-            _repoMock.Verify(r => r.Delete(It.IsAny<Kategoria>()), Times.Never);
+            Assert.Throws<Exception>(() => _controller.Ezabatu(1));
         }
     }
 }

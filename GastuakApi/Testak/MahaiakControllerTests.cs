@@ -1,6 +1,7 @@
 using JatetxeaApi.Controllerrak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Modeloak;
+
 using JatetxeaApi.Repositorioak;
 using Moq;
 using NHibernate;
@@ -10,7 +11,9 @@ using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
 
 namespace JatetxeaApi.Testak.Controllerrak
 {
+
     public class MahaiakControllerTests
+
     {
         private readonly Mock<MahaiakRepository> _repoMock;
         private readonly Mock<ErreserbakRepository> _erreserbakRepoMock;
@@ -40,6 +43,8 @@ namespace JatetxeaApi.Testak.Controllerrak
             Assert.Equal(1, lista[0].MahaiaZbk);
         }
 
+        }
+ 
         [Fact]
         public void MahaiakController_Get_MahaiaDagoenean_OkObjectResultItzultzenDu()
         {
@@ -51,7 +56,7 @@ namespace JatetxeaApi.Testak.Controllerrak
             Assert.Equal(1, dto.Id);
             Assert.Equal(1, dto.MahaiaZbk);
         }
-
+ 
         [Fact]
         public void MahaiakController_Get_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
@@ -62,6 +67,8 @@ namespace JatetxeaApi.Testak.Controllerrak
             AssertNotFoundMessage(result);
         }
 
+        }
+ 
         [Fact]
         public void MahaiakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
         {
@@ -100,6 +107,18 @@ namespace JatetxeaApi.Testak.Controllerrak
             _repoMock.Verify(r => r.Update(mahaia), Times.Once);
         }
 
+                Egoera = "Libre"
+
+            };
+ 
+            var emaitza = _controller.Sortu(dto);
+ 
+            _mahaiakRepoMock.Verify(x => x.Add(It.IsAny<Mahaiak>()), Times.Once);
+
+            Assert.IsType<OkObjectResult>(emaitza);
+
+        }
+ 
         [Fact]
         public void MahaiakController_Eguneratu_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
@@ -123,6 +142,18 @@ namespace JatetxeaApi.Testak.Controllerrak
             _repoMock.Verify(r => r.Delete(mahaia), Times.Once);
         }
 
+            };
+ 
+            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns(mahaia);
+ 
+            var emaitza = _controller.Eguneratu(1, dto);
+ 
+            _mahaiakRepoMock.Verify(x => x.Update(It.IsAny<Mahaiak>()), Times.Once);
+
+            Assert.IsType<OkObjectResult>(emaitza);
+
+        }
+ 
         [Fact]
         public void MahaiakController_Ezabatu_MahaiaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
@@ -144,6 +175,18 @@ namespace JatetxeaApi.Testak.Controllerrak
             _repoMock.Verify(r => r.GetAll(), Times.Never);
         }
 
+                Egoera = "Okupatuta"
+
+            };
+ 
+            _mahaiakRepoMock.Setup(x => x.Get(1)).Returns((Mahaiak?)null);
+ 
+            var emaitza = _controller.Eguneratu(1, dto);
+ 
+            Assert.IsType<NotFoundObjectResult>(emaitza);
+
+        }
+ 
         [Fact]
         public void MahaiakController_GetLibre_DataOrduaOkerraDenean_BadRequestObjectResultItzultzenDu()
         {
@@ -170,7 +213,7 @@ namespace JatetxeaApi.Testak.Controllerrak
             var lista = AssertOkEnumerable<MahaiakDto>(result);
             Assert.Equal(new[] { 1, 2 }, lista.Select(m => m.MahaiaZbk).ToArray());
         }
-
+ 
         [Fact]
         public void MahaiakController_GetLibre_ErreserbaAktiboekin_OkObjectResultItzultzenDu()
         {
@@ -222,5 +265,6 @@ namespace JatetxeaApi.Testak.Controllerrak
             var lista = AssertOkEnumerable<MahaiakDto>(result);
             Assert.Equal(new[] { 1, 2 }, lista.Select(m => m.Id).ToArray());
         }
+
     }
 }

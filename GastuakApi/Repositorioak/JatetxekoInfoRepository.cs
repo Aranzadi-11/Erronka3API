@@ -16,36 +16,36 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(JatetxekoInfo item)
+        public virtual void Add(JatetxekoInfo item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public JatetxekoInfo? Get(int id)
+        public virtual JatetxekoInfo? Get(int id)
         {
             return _session.Query<JatetxekoInfo>().SingleOrDefault(x => x.Id == id);
         }
 
-        public JatetxekoInfo? Get(string izena)
+        public virtual JatetxekoInfo? Get(string izena)
         {
             return _session.Query<JatetxekoInfo>().SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<JatetxekoInfo> GetAll()
+        public virtual IList<JatetxekoInfo> GetAll()
         {
             return _session.Query<JatetxekoInfo>().ToList();
         }
 
-        public void Update(JatetxekoInfo item)
+        public virtual void Update(JatetxekoInfo item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(JatetxekoInfo item)
+        public virtual void Delete(JatetxekoInfo item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

@@ -1,4 +1,4 @@
-﻿using JatetxeaApi.Modeloak;
+﻿﻿using JatetxeaApi.Modeloak;
 using JatetxeaApi.DTOak;
 using JatetxeaApi.Repositorioak;
 using Microsoft.AspNetCore.Mvc;
@@ -115,6 +115,88 @@ namespace JatetxeaApi.Controllerrak
 
             _repo.Delete(e);
             return Ok(new { mezua = "Ezabatuta" });
+        }
+
+        /// <summary>
+        /// Gaurko erreserbak lortzen ditu.
+        /// </summary>  
+        [HttpGet("gaur")]
+        public IActionResult GetGaur()
+        {
+            var lista = _repo.GetGaur().Select(e => new ErreserbakDto
+            {
+                Id = e.Id,
+                MahaiaId = e.MahaiaId,
+                Izena = e.Izena,
+                Telefonoa = e.Telefonoa,
+                ErreserbaData = e.ErreserbaData,
+                PertsonaKop = e.PertsonaKop,
+                Egoera = e.Egoera,
+                Oharrak = e.Oharrak
+            });
+
+            return Ok(lista);
+        }
+
+        /// <summary>
+        /// Etorkizuneko erreserbak lortzen ditu.
+        /// </summary>  
+        [HttpGet("etorkizunak")]
+        public IActionResult GetEtorkizunak()
+        {
+            var lista = _repo.GetEtorkizunak().Select(e => new ErreserbakDto
+            {
+                Id = e.Id,
+                MahaiaId = e.MahaiaId,
+                Izena = e.Izena,
+                Telefonoa = e.Telefonoa,
+                ErreserbaData = e.ErreserbaData,
+                PertsonaKop = e.PertsonaKop,
+                Egoera = e.Egoera,
+                Oharrak = e.Oharrak
+            });
+
+            return Ok(lista);
+        }
+
+        /// <summary>
+        /// Erreserbak data edo orduaren arabera bilatzen ditu. Bi parametroak aukerazkoak dira.
+        /// </summary>
+        [HttpGet("bilatu")]
+        public IActionResult Bilatu([FromQuery] string? data, [FromQuery] string? ordua)
+        {
+            DateTime? parsedData = null;
+            TimeSpan? parsedOrdua = null;
+
+            if (!string.IsNullOrWhiteSpace(data))
+            {
+                if (!DateTime.TryParse(data, out var d))
+                    return BadRequest(new { mezua = "data ez da zuzena" });
+
+                parsedData = d.Date;
+            }
+
+            if (!string.IsNullOrWhiteSpace(ordua))
+            {
+                if (!TimeSpan.TryParse(ordua, out var o))
+                    return BadRequest(new { mezua = "ordua ez da zuzena" });
+
+                parsedOrdua = o;
+            }
+
+            var lista = _repo.Bilatu(parsedData, parsedOrdua).Select(e => new ErreserbakDto
+            {
+                Id = e.Id,
+                MahaiaId = e.MahaiaId,
+                Izena = e.Izena,
+                Telefonoa = e.Telefonoa,
+                ErreserbaData = e.ErreserbaData,
+                PertsonaKop = e.PertsonaKop,
+                Egoera = e.Egoera,
+                Oharrak = e.Oharrak
+            });
+
+            return Ok(lista);
         }
     }
 }

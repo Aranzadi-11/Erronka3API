@@ -6,6 +6,13 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- Logging configuration ---
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("Microsoft.AspNetCore.HttpLogging", LogLevel.Information);
+
+// --- CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -17,9 +24,18 @@ builder.Services.AddCors(options =>
     });
 });
 
+// --- Controllers ---
 builder.Services.AddControllers();
 
-// Configuración de Swagger con múltiples documentos
+// --- HTTP Logging (for endpoint tracking) ---
+builder.Services.AddHttpLogging(options =>
+{
+    options.LoggingFields = Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestPath |
+                            Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.RequestMethod |
+                            Microsoft.AspNetCore.HttpLogging.HttpLoggingFields.ResponseStatusCode;
+});
+
+// --- Swagger configuration (multiple documents) ---
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("inbentarioa", new OpenApiInfo
@@ -99,7 +115,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "Endpoints de la tabla Jatetxeko Info"
     });
 
-
     c.DocInclusionPredicate((docName, apiDesc) =>
     {
         if (!apiDesc.TryGetMethodInfo(out var methodInfo))
@@ -128,7 +143,8 @@ builder.Services.AddSwaggerGen(c =>
         if (docName == "langileak" && controllerName.Contains("LangileakController"))
             return true;
 
-        if (docName == "Rolak" && controllerName.Contains("RolakController"))
+        // Fixed: lowercase "rolak" to match doc name
+        if (docName == "rolak" && controllerName.Contains("RolakController"))
             return true;
 
         if (docName == "mahaiak" && controllerName.Contains("MahaiakController"))
@@ -144,10 +160,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// NHibernate
+// --- NHibernate ---
 builder.Services.AddSingleton<ISessionFactory>(NHibernateHelper.SessionFactory);
 
-// Repositorios
+// --- Repositories ---
 builder.Services.AddTransient<InbentarioaRepository>();
 builder.Services.AddTransient<PlaterenOsagaiakRepository>();
 builder.Services.AddTransient<PlaterakRepository>();
@@ -159,10 +175,15 @@ builder.Services.AddTransient<RolakRepository>();
 builder.Services.AddTransient<MahaiakRepository>();
 builder.Services.AddTransient<ErreserbakRepository>();
 builder.Services.AddTransient<JatetxekoInfoRepository>();
+builder.Services.AddTransient<DeskuntuakRepository>();
+
+// --- Hosted Service ---
 builder.Services.AddHostedService<JatetxeaApi.BackService.KaxaTotalaKalkulatu>();
 
-
 var app = builder.Build();
+
+// --- Test log to confirm console output works ---
+app.Logger.LogInformation("Jatetxea API started. Console logging and HTTP logging are active.");
 
 if (app.Environment.IsDevelopment())
 {
@@ -171,22 +192,34 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/inbentarioa/swagger.json", "JatetxeaAPI/Inbentarioa");
         c.SwaggerEndpoint("/swagger/plateren_osagaiak/swagger.json", "JatetxeaAPI/Plateren_Osagaiak");
-        c.SwaggerEndpoint("/swagger/platerak/swagger.json", "JatetxeaAPI/Platerak");   
+        c.SwaggerEndpoint("/swagger/platerak/swagger.json", "JatetxeaAPI/Platerak");
         c.SwaggerEndpoint("/swagger/zerbitzu_xehetasunak/swagger.json", "JatetxeaAPI/Zerbitzu_Xehetasunak");
         c.SwaggerEndpoint("/swagger/kateoria/swagger.json", "JatetxeaAPI/Kategoria");
         c.SwaggerEndpoint("/swagger/zerbitzuak/swagger.json", "JatetxeaAPI/Zerbitzuak");
         c.SwaggerEndpoint("/swagger/langileak/swagger.json", "JatetxeaAPI/Langileak");
-        c.SwaggerEndpoint("/swagger/Rolak/swagger.json", "JatetxeaAPI/Rolak");
+        c.SwaggerEndpoint("/swagger/rolak/swagger.json", "JatetxeaAPI/Rolak");
         c.SwaggerEndpoint("/swagger/mahaiak/swagger.json", "JatetxeaAPI/Mahaiak");
         c.SwaggerEndpoint("/swagger/erreserbak/swagger.json", "JatetxeaAPI/Erreserbak");
         c.SwaggerEndpoint("/swagger/jatetxeko_info/swagger.json", "JatetxeaAPI/Jatetxeko_Info");
-        c.RoutePrefix = "swagger"; // UI en https://localhost:<puerto>/swagger
+        c.RoutePrefix = "swagger";
     });
 }
+
+// --- Custom debug middleware (placed first to log all requests) ---
+app.Use(async (context, next) =>
+{
+    app.Logger.LogInformation("REQUEST: {Method} {Path}", context.Request.Method, context.Request.Path);
+    await next.Invoke();
+    app.Logger.LogInformation("RESPONSE: {StatusCode}", context.Response.StatusCode);
+});
+
+// --- Built-in HTTP Logging middleware (placed early to capture all requests) ---
+app.UseHttpLogging();
 
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthorization();
 app.UseMiddleware<NHibernateSessionMiddleware>();
 app.MapControllers();
+
 app.Run();

@@ -1,4 +1,4 @@
-﻿using JatetxeaApi.Repositorioak;
+﻿﻿using JatetxeaApi.Repositorioak;
 using JatetxeaApi.Modeloak;
 using JatetxeaApi.DTOak;
 using Microsoft.AspNetCore.Mvc;
@@ -145,6 +145,20 @@ namespace JatetxeaApi.Controllerrak
             _repo.Delete(e);
 
             return Ok(new { mezua = "Ezabatuta" });
+        }
+
+        /// <summary>
+        /// Inbentarioan elementu zehatz baten kantitatea aldatzen du IDaren arabera. Aldaketa positiboa edo negatiboa izan daiteke, eta kantitatea eguneratuko da horren arabera. Adibidez, -5 baldin bada, kantitatea 5 unitate murriztuko da. Arrakastaz eguneratzen bada, eguneratutako elementuaren informazioa itzuliko da. Ez bada aurkitzen, "Ez da aurkitu" mezua itzuliko da. Ez bada ondo aldatzen, "Ezin izan da kantitatea aldatu" mezua itzuliko da.
+        /// </summary>
+        [HttpPatch("{id}/kantitatea")]
+        public IActionResult AldatuKantitatea(int id, [FromBody] KantitateaAldatuDto dto)
+        {
+            var emaitza = _repo.AldatuKantitatea(id, dto.Aldaketa);
+
+            if (!emaitza.Ondo)
+                return BadRequest(new { mezua = emaitza.Mezua });
+
+            return Ok(emaitza);
         }
     }
 }

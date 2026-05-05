@@ -16,35 +16,36 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Kategoria item)
+        public virtual void Add(Kategoria item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Kategoria? Get(int id)
+        public virtual Kategoria? Get(int id)
         {
             return _session.Query<Kategoria>().SingleOrDefault(x => x.Id == id);
         }
-        public Kategoria? Get(string izena)
+
+        public virtual Kategoria? Get(string izena)
         {
             return _session.Query<Kategoria>().SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<Kategoria> GetAll()
+        public virtual IList<Kategoria> GetAll()
         {
             return _session.Query<Kategoria>().ToList();
         }
 
-        public void Update(Kategoria item)
+        public virtual void Update(Kategoria item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Kategoria item)
+        public virtual void Delete(Kategoria item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);

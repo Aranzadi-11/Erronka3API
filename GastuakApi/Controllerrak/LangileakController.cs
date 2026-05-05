@@ -31,7 +31,8 @@ namespace JatetxeaApi.Controllerrak
                 Pasahitza = l.Pasahitza,
                 Aktibo = l.Aktibo,
                 ErregistroData = l.ErregistroData,
-                RolaId = l.RolaId
+                RolaId = l.RolaId,
+                TxatBaimena = l.TxatBaimena
             });
 
             return Ok(lista);
@@ -54,7 +55,8 @@ namespace JatetxeaApi.Controllerrak
                 Pasahitza = l.Pasahitza,
                 Aktibo = l.Aktibo,
                 ErregistroData = l.ErregistroData,
-                RolaId = l.RolaId
+                RolaId = l.RolaId,
+                TxatBaimena = l.TxatBaimena
             });
         }
 
@@ -82,7 +84,8 @@ namespace JatetxeaApi.Controllerrak
                 Erabiltzailea = l.Erabiltzailea,
                 Aktibo = l.Aktibo,
                 ErregistroData = l.ErregistroData,
-                RolaId = l.RolaId
+                RolaId = l.RolaId,
+                TxatBaimena = l.TxatBaimena
             });
         }
 
@@ -92,7 +95,7 @@ namespace JatetxeaApi.Controllerrak
         [HttpPost]
         public IActionResult Sortu([FromBody] LangileakSortuDto dto)
         {
-            var l = new Langileak(dto.Izena, dto.Erabiltzailea, dto.Pasahitza, dto.Aktibo, dto.ErregistroData, dto.RolaId);
+            var l = new Langileak(dto.Izena, dto.Erabiltzailea, dto.Pasahitza, dto.Aktibo, dto.ErregistroData, dto.RolaId, dto.TxatBaimena);
             _repo.Add(l);
             return Ok(new { mezua = "Langilea sortuta", id = l.Id });
         }
@@ -112,6 +115,7 @@ namespace JatetxeaApi.Controllerrak
             l.Aktibo = dto.Aktibo;
             l.ErregistroData = dto.ErregistroData;
             l.RolaId = dto.RolaId;
+            l.TxatBaimena = dto.TxatBaimena;
 
             _repo.Update(l);
             return Ok(new { mezua = "Eguneratuta" });

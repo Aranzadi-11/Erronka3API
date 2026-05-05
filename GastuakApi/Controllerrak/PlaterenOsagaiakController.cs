@@ -1,4 +1,4 @@
-﻿using JatetxeaApi.Modeloak;
+﻿﻿using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;

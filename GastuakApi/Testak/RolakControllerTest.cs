@@ -1,286 +1,132 @@
-using Microsoft.AspNetCore.Mvc;
-using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Xunit;
 using JatetxeaApi.Controllerrak;
-using JatetxeaApi.Modeloak;
 using JatetxeaApi.DTOak;
+using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
+using Moq;
+using NHibernate;
+using Xunit;
 
-namespace JatetxeaApi.Testak
+using static JatetxeaApi.Testak.Controllerrak.ControllerTestHelpers;
+
+namespace JatetxeaApi.Testak.Controllerrak
 {
-    public class RolakControllerTests
+    public class RolakControllerTest
     {
-        [Fact]
-        public void R1_GetAllOndo_Ok()
+        private readonly Mock<RolakRepository> _repoMock;
+        private readonly RolakController _controller;
+
+        public RolakControllerTest()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rolak = new List<Rolak>
+            var sessionFactoryMock = new Mock<ISessionFactory>();
+            _repoMock = new Mock<RolakRepository>(sessionFactoryMock.Object);
+            _controller = new RolakController(_repoMock.Object);
+        }
+
+        [Fact]
+        public void RolakController_GetAll_Zerrenda_OkObjectResultItzultzenDu()
+        {
+            _repoMock.Setup(r => r.GetAll()).Returns(new List<Rolak>
             {
-                new Rolak("Admin"),
-                new Rolak("Langilea")
-            };
+                Rola(1, "Admin"),
+                Rola(2, "Zerbitzaria")
+            });
 
-            mockRepo.Setup(r => r.GetAll()).Returns(rolak);
-            var controller = new RolakController(mockRepo.Object);
+            var result = _controller.GetAll();
 
-            // Act
-            var result = controller.GetAll();
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedRolak = Assert.IsAssignableFrom<IEnumerable<RolakDto>>(okResult.Value);
-            var lista = returnedRolak.ToList();
-
+            var lista = AssertOkEnumerable<RolakDto>(result);
             Assert.Equal(2, lista.Count);
             Assert.Equal("Admin", lista[0].Izena);
-            Assert.Equal("Langilea", lista[1].Izena);
         }
 
         [Fact]
-        public void R2_GetAllSalbuespena_InternalServerError()
+        public void RolakController_Get_RolaDagoenean_OkObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            mockRepo.Setup(r => r.GetAll()).Throws(new Exception("Errorea"));
-            var controller = new RolakController(mockRepo.Object);
+            _repoMock.Setup(r => r.Get(1)).Returns(Rola(1, "Admin"));
 
-            // Act & Assert
-            Assert.Throws<Exception>(() => controller.GetAll());
+            var result = _controller.Get(1);
+
+            var dto = AssertOkValue<RolakDto>(result);
+            Assert.Equal(1, dto.Id);
+            Assert.Equal("Admin", dto.Izena);
         }
 
         [Fact]
-        public void R3_RolaExistitzenDa_Ok()
+        public void RolakController_Get_RolaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Admin");
+            _repoMock.Setup(r => r.Get(99)).Returns((Rolak?)null);
 
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            var controller = new RolakController(mockRepo.Object);
+            var result = _controller.Get(99);
 
-            // Act
-            var result = controller.Get(1);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var returnedRola = Assert.IsType<RolakDto>(okResult.Value);
-            Assert.Equal("Admin", returnedRola.Izena);
+            AssertNotFoundMessage(result);
         }
 
         [Fact]
-        public void R4_RolaEzExistitzen_NotFound()
+        public void RolakController_Sortu_DatuBaliozkoekin_OkObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            mockRepo.Setup(r => r.Get(1)).Returns((Rolak)null);
-            var controller = new RolakController(mockRepo.Object);
+            var dto = RolaSortuDto("Sukaldaria");
+            Rolak? gordeta = null;
+            _repoMock.Setup(r => r.Add(It.IsAny<Rolak>()))
+                .Callback<Rolak>(r =>
+                {
+                    r.Id = 7;
+                    gordeta = r;
+                });
 
-            // Act
-            var result = controller.Get(1);
+            var result = _controller.Sortu(dto);
 
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
-            Assert.Equal("Ez da aurkitu", mezua);
+            var ok = AssertOk(result);
+            Assert.Equal("Rola sortuta", Property<string>(ok.Value!, "mezua"));
+            Assert.Equal(7, Property<int>(ok.Value!, "id"));
+            Assert.NotNull(gordeta);
+            Assert.Equal("Sukaldaria", gordeta.Izena);
         }
 
         [Fact]
-        public void R5_GetSalbuespena_InternalServerError()
+        public void RolakController_Eguneratu_RolaDagoenean_OkObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            mockRepo.Setup(r => r.Get(1)).Throws(new Exception("Errorea"));
-            var controller = new RolakController(mockRepo.Object);
+            var rola = Rola(1, "Zaharra");
+            _repoMock.Setup(r => r.Get(1)).Returns(rola);
+            var dto = RolaSortuDto("Berria");
 
-            // Act & Assert
-            Assert.Throws<Exception>(() => controller.Get(1));
-        }
+            var result = _controller.Eguneratu(1, dto);
 
-        [Fact]
-        public void R6_SortuOndo_Ok()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var dto = new RolakSortuDto
-            {
-                Izena = "Sukaldaria"
-            };
-
-            mockRepo.Setup(r => r.Add(It.IsAny<Rolak>()));
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act
-            var result = controller.Sortu(dto);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var value = okResult.Value;
-
-            var mezua = value.GetType().GetProperty("mezua")?.GetValue(value, null);
-            Assert.Equal("Rola sortuta", mezua);
-        }
-
-        [Fact]
-        public void R7_SortuBodyNull_InternalServerError()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act & Assert
-            Assert.Throws<NullReferenceException>(() => controller.Sortu(null));
-        }
-
-        [Fact]
-        public void R8_SortuSalbuespena_InternalServerError()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var dto = new RolakSortuDto
-            {
-                Izena = "Sukaldaria"
-            };
-
-            mockRepo.Setup(r => r.Add(It.IsAny<Rolak>())).Throws(new Exception("Errorea"));
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act & Assert
-            Assert.Throws<Exception>(() => controller.Sortu(dto));
-        }
-
-        [Fact]
-        public void R9_RolaEzExistitzen_NotFound()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            mockRepo.Setup(r => r.Get(1)).Returns((Rolak)null);
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act
-            var result = controller.Eguneratu(1, new RolakSortuDto { Izena = "Berria" });
-
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
-            Assert.Equal("Ez da aurkitu", mezua);
-        }
-
-        [Fact]
-        public void R10_EguneratuOndo_Ok()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Zaharra");
-            var dto = new RolakSortuDto
-            {
-                Izena = "Berria"
-            };
-
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            mockRepo.Setup(r => r.Update(It.IsAny<Rolak>()));
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act
-            var result = controller.Eguneratu(1, dto);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
-
-            Assert.Equal("Eguneratuta", mezua);
+            AssertOkMessage(result, "Eguneratuta");
             Assert.Equal("Berria", rola.Izena);
-            mockRepo.Verify(r => r.Update(It.IsAny<Rolak>()), Times.Once);
+            _repoMock.Verify(r => r.Update(rola), Times.Once);
         }
 
         [Fact]
-        public void R11_EguneratuBodyNull_InternalServerError()
+        public void RolakController_Eguneratu_RolaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Admin");
+            _repoMock.Setup(r => r.Get(99)).Returns((Rolak?)null);
 
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            var controller = new RolakController(mockRepo.Object);
+            var result = _controller.Eguneratu(99, RolaSortuDto());
 
-            // Act & Assert
-            Assert.Throws<NullReferenceException>(() => controller.Eguneratu(1, null));
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Update(It.IsAny<Rolak>()), Times.Never);
         }
 
         [Fact]
-        public void R12_EguneratuSalbuespena_InternalServerError()
+        public void RolakController_Ezabatu_RolaDagoenean_OkObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Zaharra");
-            var dto = new RolakSortuDto
-            {
-                Izena = "Berria"
-            };
+            var rola = Rola(1, "Admin");
+            _repoMock.Setup(r => r.Get(1)).Returns(rola);
 
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            mockRepo.Setup(r => r.Update(It.IsAny<Rolak>())).Throws(new Exception("Errorea"));
-            var controller = new RolakController(mockRepo.Object);
+            var result = _controller.Ezabatu(1);
 
-            // Act & Assert
-            Assert.Throws<Exception>(() => controller.Eguneratu(1, dto));
+            AssertOkMessage(result, "Ezabatuta");
+            _repoMock.Verify(r => r.Delete(rola), Times.Once);
         }
 
         [Fact]
-        public void R13_RolaEzExistitzen_NotFound()
+        public void RolakController_Ezabatu_RolaEzDagoenean_NotFoundObjectResultItzultzenDu()
         {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            mockRepo.Setup(r => r.Get(1)).Returns((Rolak)null);
-            var controller = new RolakController(mockRepo.Object);
+            _repoMock.Setup(r => r.Get(99)).Returns((Rolak?)null);
 
-            // Act
-            var result = controller.Ezabatu(1);
+            var result = _controller.Ezabatu(99);
 
-            // Assert
-            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
-            var mezua = notFoundResult.Value.GetType().GetProperty("mezua")?.GetValue(notFoundResult.Value, null);
-            Assert.Equal("Ez da aurkitu", mezua);
-        }
-
-        [Fact]
-        public void R14_EzabatuOndo_Ok()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Admin");
-
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            mockRepo.Setup(r => r.Delete(It.IsAny<Rolak>()));
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act
-            var result = controller.Ezabatu(1);
-
-            // Assert
-            var okResult = Assert.IsType<OkObjectResult>(result);
-            var mezua = okResult.Value.GetType().GetProperty("mezua")?.GetValue(okResult.Value, null);
-
-            Assert.Equal("Ezabatuta", mezua);
-            mockRepo.Verify(r => r.Delete(It.IsAny<Rolak>()), Times.Once);
-        }
-
-        [Fact]
-        public void R15_EzabatuSalbuespena_InternalServerError()
-        {
-            // Arrange
-            var mockRepo = new Mock<RolakRepository>();
-            var rola = new Rolak("Admin");
-
-            mockRepo.Setup(r => r.Get(1)).Returns(rola);
-            mockRepo.Setup(r => r.Delete(It.IsAny<Rolak>())).Throws(new Exception("Errorea"));
-            var controller = new RolakController(mockRepo.Object);
-
-            // Act & Assert
-            Assert.Throws<Exception>(() => controller.Ezabatu(1));
+            AssertNotFoundMessage(result);
+            _repoMock.Verify(r => r.Delete(It.IsAny<Rolak>()), Times.Never);
         }
     }
 }

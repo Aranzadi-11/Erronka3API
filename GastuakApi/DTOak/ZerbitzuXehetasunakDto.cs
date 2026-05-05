@@ -20,4 +20,5 @@
         public bool Zerbitzatuta { get; set; }
 
     }
+
 }

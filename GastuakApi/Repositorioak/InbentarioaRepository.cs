@@ -1,7 +1,9 @@
-﻿using JatetxeaApi.Modeloak;
+﻿using JatetxeaApi.DTOak;
+using JatetxeaApi.Modeloak;
 using NHibernate;
-using System.Linq;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using NHSession = NHibernate.ISession;
 using NHSessionFactory = NHibernate.ISessionFactory;
 
@@ -16,42 +18,99 @@ namespace JatetxeaApi.Repositorioak
             _session = sessionFactory.GetCurrentSession();
         }
 
-        public void Add(Inbentarioa item)
+        public virtual void Add(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Save(item);
             tx.Commit();
         }
 
-        public Inbentarioa? Get(int id)
+        public virtual Inbentarioa? Get(int id)
         {
             return _session.Query<Inbentarioa>()
                 .SingleOrDefault(x => x.Id == id);
         }
 
-        public Inbentarioa? Get(String izena)
+        public virtual Inbentarioa? Get(string izena)
         {
             return _session.Query<Inbentarioa>()
                 .SingleOrDefault(x => x.Izena == izena);
         }
 
-        public IList<Inbentarioa> GetAll()
+        public virtual IList<Inbentarioa> GetAll()
         {
             return _session.Query<Inbentarioa>().ToList();
         }
 
-        public void Update(Inbentarioa item)
+        public virtual void Update(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Update(item);
             tx.Commit();
         }
 
-        public void Delete(Inbentarioa item)
+        public virtual void Delete(Inbentarioa item)
         {
             using var tx = _session.BeginTransaction();
             _session.Delete(item);
             tx.Commit();
+        }
+
+        public virtual EragiketaEmaitzaDto AldatuKantitatea(int id, int aldaketa)
+        {
+            using var session = NHibernateHelper.SessionFactory.OpenSession();
+            using var tx = session.BeginTransaction();
+
+            try
+            {
+                var e = session.Get<Inbentarioa>(id);
+                if (e == null)
+                {
+                    return new EragiketaEmaitzaDto
+                    {
+                        Ondo = false,
+                        Mezua = "Ez da aurkitu",
+                        Id = id
+                    };
+                }
+
+                var berria = e.Kantitatea + aldaketa;
+                if (berria < 0)
+                {
+                    return new EragiketaEmaitzaDto
+                    {
+                        Ondo = false,
+                        Mezua = "Ezin da kantitatea 0 baino txikiagoa izan",
+                        Id = id,
+                        KantitateBerria = e.Kantitatea
+                    };
+                }
+
+                e.Kantitatea = berria;
+                e.AzkenEguneratzea = DateTime.Now;
+
+                session.Update(e);
+                tx.Commit();
+
+                return new EragiketaEmaitzaDto
+                {
+                    Ondo = true,
+                    Mezua = "Kantitatea eguneratuta",
+                    Id = id,
+                    KantitateBerria = berria
+                };
+            }
+            catch (Exception ex)
+            {
+                if (tx.IsActive) tx.Rollback();
+
+                return new EragiketaEmaitzaDto
+                {
+                    Ondo = false,
+                    Mezua = $"Errorea kantitatea aldatzean: {ex.Message}",
+                    Id = id
+                };
+            }
         }
     }
 }

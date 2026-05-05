@@ -1,5 +1,6 @@
-﻿using JatetxeaApi.Modeloak;
+﻿using GastuakApi.DTOak;
 using JatetxeaApi.DTOak;
+using JatetxeaApi.Modeloak;
 using JatetxeaApi.Repositorioak;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -19,7 +20,7 @@ namespace JatetxeaApi.Controllerrak
         }
 
         /// <summary>
-        /// Zerbitzuak guztiak lortzen ditu. Ez du inolako iragazkirik egiten, beraz, datu asko itzul daitezke. Behar izanez gero, iragazkiak eta paginazioa gehitu daitezke.
+        /// Zerbitzuen zerrenda osoa lortzen du eta datuak ZerbitzuakDto formatuan itzultzen ditu
         /// </summary>
         [HttpGet]
         public IActionResult GetAll()
@@ -39,7 +40,7 @@ namespace JatetxeaApi.Controllerrak
         }
 
         /// <summary>
-        /// Zerbitzu zehatz bat lortzen du IDaren arabera. Ez badago, 404 errorea itzultzen du. Datu gehiago edo gutxiago itzuli daitezke beharrezkoa denaren arabera.
+        /// Zerbitzu bat lortzen du IDaren arabera, eta datuak ZerbitzuakDto formatuan itzultzen ditu
         /// </summary>
         [HttpGet("{id}")]
         public IActionResult Get(int id)
@@ -60,7 +61,7 @@ namespace JatetxeaApi.Controllerrak
         }
 
         /// <summary>
-        /// Zerbitzu berria sortzen du. Beharrezkoa da LangileId, MahaiaId, ErreserbaId, Egoera eta Guztira ematea. EskaeraData automatikoki ezartzen da une horretako datara. Datu guztiak beharrezkoak dira sortzeko, bestela 400 errorea itzuliko da. Sortutako zerbitzuaren IDa itzultzen du arrakastaz sortzean.
+        /// Zerbitzu bat sortzen du, datuak gorputzean jasotzen ditu eta eskaera data gaurkoa jartzen du automatikoki
         /// </summary>
         [HttpPost]
         public IActionResult Sortu([FromBody] ZerbitzuakSortuDto dto)
@@ -71,8 +72,8 @@ namespace JatetxeaApi.Controllerrak
         }
 
         /// <summary>
-        /// Zerbitzu zehatz bat eguneratzen du IDaren arabera. Ez badago, 404 errorea itzultzen du. Eguneratzeko, LangileId, MahaiaId, ErreserbaId, EskaeraData, Egoera eta Guztira ematea beharrezkoa da. Datu guztiak beharrezkoak dira eguneratzeko, bestela 400 errorea itzuliko da. Arrakastaz eguneratzean, "Eguneratuta" mezua itzultzen du.
-        /// </summary>
+        /// Zerbitzu bat eguneratzen du IDaren arabera, datuak gorputzean jasotzen ditu
+        /// </summary>  
         [HttpPut("{id}")]
         public IActionResult Eguneratu(int id, [FromBody] ZerbitzuakSortuDto dto)
         {
@@ -91,7 +92,7 @@ namespace JatetxeaApi.Controllerrak
         }
 
         /// <summary>
-        /// Zerbitzu zehatz bat ezabatzen du IDaren arabera. Ez badago, 404 errorea itzultzen du. Arrakastaz ezabatzean, "Ezabatuta" mezua itzultzen du.
+        /// Zerbitzu bat ezabatzen du IDaren arabera
         /// </summary>
         [HttpDelete("{id}")]
         public IActionResult Ezabatu(int id)
@@ -103,162 +104,98 @@ namespace JatetxeaApi.Controllerrak
             return Ok(new { mezua = "Ezabatuta" });
         }
 
-        /// <summary>
-        /// Zerbitzu baten platerak eguneratzen ditu. Platerak ez badira existitzen, sortzen ditu. Platerak existitzen badira eta kantitatea handitu bada, inbentarioan dagoen kantitatea eguneratzen du. Platerak existitzen badira eta kantitatea jaitsi bada, inbentarioan dagoen kantitatea eguneratzen du, baina bakarrik platera zerbitzatuta ez badago. Platera zerbitzatuta badago eta kantitatea jaitsi bada, ez du ezer egiten kantitatearekin. Platera ezabatu egiten da kantitatea 0 bada eta zerbitzatuta ez badago. Azkenik, zerbitzuaren guztira ere eguneratzen du plater guztien prezio unitarioa eta kantitatearen arabera. Arrakastaz eguneratzean, "Ondo" mezua itzultzen du eta zerbitzuaren IDa itzultzen du. Edozein errore gertatuz gero, "Ondo" false izango da eta erroreen zerrenda itzuliko da.
-        /// </summary>
         [HttpPost("egin")]
         public IActionResult ZerbitzuaEgin([FromBody] ZerbitzuaEskariaDto dto)
         {
-            using var session = NHibernateHelper.SessionFactory.OpenSession();
-            using var tx = session.BeginTransaction();
-
-            try
-            {
-                var zerbitzua = session.Query<Zerbitzuak>()
-                    .FirstOrDefault(z => z.ErreserbaId == dto.ErreserbaId);
-
-                if (zerbitzua == null)
-                {
-                    zerbitzua = new Zerbitzuak(dto.LangileId, dto.MahaiaId, dto.ErreserbaId, DateTime.Now, "Eskatuta", 0);
-                    session.Save(zerbitzua);
-                }
-
-                var xehetasunak = session.Query<ZerbitzuXehetasunak>()
-                    .Where(x => x.ZerbitzuaId == zerbitzua.Id)
-                    .ToList();
-
-                foreach (var p in dto.Platerak)
-                {
-                    var zaharra = xehetasunak.FirstOrDefault(x => x.PlateraId == p.PlateraId);
-                    var berriaKant = p.Kantitatea;
-
-                    if (zaharra == null && berriaKant > 0)
-                    {
-                        var platera = session.Get<Platerak>(p.PlateraId);
-                        var osagaiak = session.Query<PlaterenOsagaiak>()
-                            .Where(o => o.PlateraId == p.PlateraId)
-                            .ToList();
-
-                        foreach (var o in osagaiak)
-                        {
-                            var inv = session.Get<Inbentarioa>(o.InbentarioaId);
-                            session.Lock(inv, NHibernate.LockMode.Upgrade);
-                            inv.Kantitatea -= (int)(o.Kantitatea * berriaKant);
-                            inv.AzkenEguneratzea = DateTime.Now;
-                            session.Update(inv);
-                        }
-
-                        session.Save(new ZerbitzuXehetasunak
-                        {
-                            ZerbitzuaId = zerbitzua.Id,
-                            PlateraId = p.PlateraId,
-                            Kantitatea = berriaKant,
-                            PrezioUnitarioa = platera.Prezioa,
-                            Zerbitzatuta = false
-                        });
-
-                        continue;
-                    }
-
-                    if (zaharra != null)
-                    {
-                        if (zaharra.Zerbitzatuta && berriaKant < zaharra.Kantitatea)
-                            berriaKant = zaharra.Kantitatea;
-
-                        var diferentzia = berriaKant - zaharra.Kantitatea;
-
-                        if (diferentzia > 0)
-                        {
-                            var osagaiak = session.Query<PlaterenOsagaiak>()
-                                .Where(o => o.PlateraId == p.PlateraId)
-                                .ToList();
-
-                            foreach (var o in osagaiak)
-                            {
-                                var inv = session.Get<Inbentarioa>(o.InbentarioaId);
-                                session.Lock(inv, NHibernate.LockMode.Upgrade);
-                                inv.Kantitatea -= (int)(o.Kantitatea * diferentzia);
-                                inv.AzkenEguneratzea = DateTime.Now;
-                                session.Update(inv);
-                            }
-
-                            zaharra.Kantitatea = berriaKant;
-                            session.Update(zaharra);
-                        }
-                        else if (diferentzia < 0 && !zaharra.Zerbitzatuta)
-                        {
-                            var osagaiak = session.Query<PlaterenOsagaiak>()
-                                .Where(o => o.PlateraId == p.PlateraId)
-                                .ToList();
-
-                            foreach (var o in osagaiak)
-                            {
-                                var inv = session.Get<Inbentarioa>(o.InbentarioaId);
-                                session.Lock(inv, NHibernate.LockMode.Upgrade);
-                                inv.Kantitatea += (int)(o.Kantitatea * -diferentzia);
-                                inv.AzkenEguneratzea = DateTime.Now;
-                                session.Update(inv);
-                            }
-
-                            zaharra.Kantitatea = berriaKant;
-                            session.Update(zaharra);
-                        }
-
-                        if (zaharra.Kantitatea == 0 && !zaharra.Zerbitzatuta)
-                        {
-                            session.Delete(zaharra);
-                        }
-                    }
-                }
-
-                var xeheList = session.Query<ZerbitzuXehetasunak>()
-                    .Where(x => x.ZerbitzuaId == zerbitzua.Id)
-                    .ToList();
-
-                zerbitzua.Guztira = xeheList.Any()
-                    ? xeheList.Sum(x => x.PrezioUnitarioa * x.Kantitatea)
-                    : 0;
-
-
-
-                session.Update(zerbitzua);
-                tx.Commit();
-
-                return Ok(new ZerbitzuaEmaitzaDto
-                {
-                    Ondo = true,
-                    ZerbitzuaId = zerbitzua.Id,
-                    Erroreak = new()
-                });
-            }
-            catch
-            {
-                tx.Rollback();
-                throw;
-            }
+            var emaitza = _repo.ZerbitzuaEgin(dto);
+            return Ok(emaitza);
         }
 
         /// <summary>
-        /// Zerbitzu baten platerak lortzen ditu erreserba IDaren arabera. Ez badago zerbitzurik erreserba honekin, 404 errorea itzultzen du. Datu gehiago edo gutxiago itzuli daitezke beharrezkoa denaren arabera.
+        /// Erreserba baten platerak lortzen ditu zerbitzuaren xehetasunekin batera 
         /// </summary>
         [HttpGet("erreserba/{erreserbaId}/platerak")]
         public IActionResult GetPlaterakByErreserba(int erreserbaId)
         {
-            var zerbitzua = _repo.GetAll().FirstOrDefault(z => z.ErreserbaId == erreserbaId);
+            var zerbitzua = _repo.GetByErreserbaId(erreserbaId);
             if (zerbitzua == null) return NotFound(new { mezua = "Ez dago zerbitzurik erreserba honekin" });
 
-            using var session = NHibernateHelper.SessionFactory.OpenSession();
-            var xehetasunak = session.Query<ZerbitzuXehetasunak>()
-                .Where(x => x.ZerbitzuaId == zerbitzua.Id)
-                .Select(x => new
-                {
-                    x.PlateraId,
-                    x.Kantitatea,
-                    x.Zerbitzatuta
-                })
-                .ToList();
-
+            var xehetasunak = _repo.GetPlaterakLaburpenaByZerbitzuaId(zerbitzua.Id);
             return Ok(xehetasunak);
+        }
+
+        /// <summary>
+        /// Gaurko zerbitzuak lortzen ditu eta datuak ZerbitzuakDto formatuan itzultzen ditu
+        /// </summary>
+        [HttpGet("gaur")]
+        public IActionResult GetGaur()
+        {
+            var lista = _repo.GetGaur().Select(z => new ZerbitzuakDto
+            {
+                Id = z.Id,
+                LangileId = z.LangileId,
+                MahaiaId = z.MahaiaId,
+                ErreserbaId = z.ErreserbaId,
+                EskaeraData = z.EskaeraData,
+                Egoera = z.Egoera,
+                Guztira = z.Guztira
+            });
+
+            return Ok(lista);
+        }
+
+        [HttpGet("egunekoak")]
+        public IActionResult GetEgunekoak()
+        {
+            var lista = _repo.GetEgunekoak().Select(z => new ZerbitzuakDto
+            {
+                Id = z.Id,
+                LangileId = z.LangileId,
+                MahaiaId = z.MahaiaId,
+                ErreserbaId = z.ErreserbaId,
+                EskaeraData = z.EskaeraData,
+                Egoera = z.Egoera,
+                Guztira = z.Guztira
+            });
+
+            return Ok(lista);
+        }
+
+        [HttpGet("erreserba/{erreserbaId}")]
+        public IActionResult GetByErreserba(int erreserbaId)
+        {
+            var z = _repo.GetByErreserbaId(erreserbaId);
+            if (z == null) return NotFound(new { mezua = "Ez dago zerbitzurik erreserba honekin" });
+
+            return Ok(new ZerbitzuakDto
+            {
+                Id = z.Id,
+                LangileId = z.LangileId,
+                MahaiaId = z.MahaiaId,
+                ErreserbaId = z.ErreserbaId,
+                EskaeraData = z.EskaeraData,
+                Egoera = z.Egoera,
+                Guztira = z.Guztira
+            });
+        }
+
+        [HttpGet("erreserba/{erreserbaId}/laburpena")]
+        public IActionResult GetLaburpenaByErreserba(int erreserbaId)
+        {
+            var lista = _repo.GetLaburpenaByErreserbaId(erreserbaId);
+            return Ok(lista);
+        }
+
+        [HttpPatch("{id}/egoera")]
+        public IActionResult AldatuEgoera(int id, [FromBody] ZerbitzuEgoeraPatchDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Egoera))
+                return BadRequest(new { mezua = "Egoera beharrezkoa da" });
+
+            var ondo = _repo.AldatuEgoera(id, dto.Egoera);
+            if (!ondo) return NotFound(new { mezua = "Ez da aurkitu" });
+
+            return Ok(new { mezua = "Egoera eguneratuta" });
         }
     }
 }

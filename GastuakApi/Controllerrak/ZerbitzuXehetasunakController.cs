@@ -119,5 +119,40 @@ namespace JatetxeaApi.Controllerrak
 
             return Ok(new { mezua = "Ezabatuta" });
         }
+
+        /// <summary>
+        /// Zerbitzu zehatz bateko xehetasun guztiak lortzen ditu. Zerbitzuaren Id-a URLaren parte gisa jasotzen da. Arrakastaz aurkitzen bada, xehetasunen zerrenda itzuliko da, non bakoitza ZerbitzuXehetasunakDto formatuan egongo den, zeinak honako informazioa edukiko duen: Id, ZerbitzuaId, PlateraId, Kantitatea, PrezioUnitarioa eta Zerbitzatuta. Ez bada aurkitzen, "Ez da aurkitu" mezua itzuliko da.
+        /// </summary>
+        [HttpGet("zerbitzua/{zerbitzuaId}")]
+        public IActionResult GetByZerbitzua(int zerbitzuaId)
+        {
+            var elementuak = _repo.GetByZerbitzuaId(zerbitzuaId);
+
+            var dtoLista = elementuak.Select(e => new ZerbitzuXehetasunakDto
+            {
+                Id = e.Id,
+                ZerbitzuaId = e.ZerbitzuaId,
+                PlateraId = e.PlateraId,
+                Kantitatea = e.Kantitatea,
+                PrezioUnitarioa = e.PrezioUnitarioa,
+                Zerbitzatuta = e.Zerbitzatuta
+            });
+
+            return Ok(dtoLista);
+        }
+
+        /// <summary>
+        /// Id zehatz bateko zerbitzu xehetasunaren "Zerbitzatuta" egoera aldatzen du. Id hori URLaren parte gisa jasotzen da, eta "Zerbitzatuta" egoera aldatzeko datuak ZerbitzatutaPatchDto formatuan jasotzen dira, zeinak honako informazioa edukiko duen: Zerbitzatuta (boolean). Arrakastaz eguneratzen bada, "Egoera aldatu da" mezua itzuliko da. Ez bada aurkitzen, "Ez da aurkitu" mezua itzuliko da.
+        /// </summary>
+        [HttpPatch("{id}/zerbitzatuta")]
+        public IActionResult AldatuZerbitzatuta(int id, [FromBody] ZerbitzatutaPatchDto dto)
+        {
+            var emaitza = _repo.AldatuZerbitzatutaEtaStock(id, dto.Zerbitzatuta);
+
+            if (!emaitza.Ondo)
+                return BadRequest(new { mezua = emaitza.Mezua });
+
+            return Ok(emaitza);
+        }
     }
 }

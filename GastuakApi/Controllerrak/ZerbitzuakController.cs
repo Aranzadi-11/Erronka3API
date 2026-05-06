@@ -104,6 +104,9 @@ namespace JatetxeaApi.Controllerrak
             return Ok(new { mezua = "Ezabatuta" });
         }
 
+        /// <summary>
+        /// Erreserba bati lotutako zerbitzua sortu edo eguneratzen du. Plater kopuruak jasotzen ditu, stocka eguneratzen du eta zerbitzuaren guztirakoa berriz kalkulatzen du.
+        /// </summary>
         [HttpPost("egin")]
         public IActionResult ZerbitzuaEgin([FromBody] ZerbitzuaEskariaDto dto)
         {
@@ -144,6 +147,9 @@ namespace JatetxeaApi.Controllerrak
             return Ok(lista);
         }
 
+        /// <summary>
+        /// Gaurko zerbitzuak lortzen ditu eskaera dataren arabera ordenatuta.
+        /// </summary>
         [HttpGet("egunekoak")]
         public IActionResult GetEgunekoak()
         {
@@ -161,6 +167,9 @@ namespace JatetxeaApi.Controllerrak
             return Ok(lista);
         }
 
+        /// <summary>
+        /// Erreserba zehatz bati lotutako zerbitzua lortzen du.
+        /// </summary>
         [HttpGet("erreserba/{erreserbaId}")]
         public IActionResult GetByErreserba(int erreserbaId)
         {
@@ -179,6 +188,9 @@ namespace JatetxeaApi.Controllerrak
             });
         }
 
+        /// <summary>
+        /// Erreserba bateko zerbitzuaren plater laburpena itzultzen du, kategoria eta zerbitzatuta egoerarekin.
+        /// </summary>
         [HttpGet("erreserba/{erreserbaId}/laburpena")]
         public IActionResult GetLaburpenaByErreserba(int erreserbaId)
         {
@@ -186,6 +198,9 @@ namespace JatetxeaApi.Controllerrak
             return Ok(lista);
         }
 
+        /// <summary>
+        /// Zerbitzu baten egoera aldatzen du, adibidez Eskatuta, Prestatzen, Amaituta edo Ordainduta balioetara.
+        /// </summary>
         [HttpPatch("{id}/egoera")]
         public IActionResult AldatuEgoera(int id, [FromBody] ZerbitzuEgoeraPatchDto dto)
         {

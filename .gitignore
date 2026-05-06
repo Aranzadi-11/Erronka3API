@@ -2,4 +2,5 @@
 packages/
 GastuakApi/obj/
 GastuakApi/bin/
+GastuakApi/docs/_site/
 bin/

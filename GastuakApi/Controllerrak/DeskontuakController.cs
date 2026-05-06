@@ -15,12 +15,18 @@ namespace JatetxeaApi.Controllerrak
             _repo = repo;
         }
 
+        /// <summary>
+        /// Deskontu kode bat baliozkoa den egiaztatzen du Odoo datu-baseko arauak erabilita.
+        /// </summary>
         [HttpPost("validate")]
         public async Task<IActionResult> Validate([FromBody] DeskuntuKodeaDto? dto)
         {
             return Ok(await _repo.ValidateAsync(dto?.GetCode()));
         }
 
+        /// <summary>
+        /// Deskontu kode bat balidatu eta, zuzena bada, erabilera kopurua handitzen du.
+        /// </summary>
         [HttpPost("apply")]
         public async Task<IActionResult> Apply([FromBody] DeskuntuKodeaDto? dto)
         {

@@ -1,0 +1,30 @@
+{
+  "build": {
+    "content": [
+      {
+        "files": [
+          "toc.yml",
+          "*.md"
+        ],
+        "src": "docs"
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "images/**"
+        ],
+        "src": "docs"
+      }
+    ],
+    "output": "docs/_site",
+    "template": [
+      "default"
+    ],
+    "globalMetadata": {
+      "_appName": "Jatetxea API Dokumentazioa",
+      "_appTitle": "Jatetxea API Dokumentazioa",
+      "_enableSearch": true
+    }
+  }
+}

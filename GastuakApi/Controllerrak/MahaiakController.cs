@@ -36,6 +36,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Jatetxeko mahai guztien zerrenda itzultzen du.
+        /// </summary>
         [HttpGet]
 
         public IActionResult GetAll()
@@ -60,6 +63,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Mahai zehatz bat lortzen du. Egungo repositoryan balio hau mahai zenbaki gisa erabiltzen da.
+        /// </summary>
         [HttpGet("{id}")]
 
         public IActionResult Get(int id)
@@ -86,6 +92,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Mahai berri bat sortzen du, zenbakia, edukiera eta egoera jasota.
+        /// </summary>
         [HttpPost]
 
         public IActionResult Sortu([FromBody] MahaiakSortuDto dto)
@@ -100,6 +109,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Mahai zehatz baten datuak eguneratzen ditu.
+        /// </summary>
         [HttpPut("{id}")]
 
         public IActionResult Eguneratu(int id, [FromBody] MahaiakSortuDto dto)
@@ -122,6 +134,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Mahai zehatz bat ezabatzen du.
+        /// </summary>
         [HttpDelete("{id}")]
 
         public IActionResult Ezabatu(int id)
@@ -138,6 +153,9 @@ namespace JatetxeaApi.Controllerrak
 
         }
  
+        /// <summary>
+        /// Data eta ordu batean libre dauden mahaiak itzultzen ditu, kantzelatu gabeko erreserbak kontuan hartuta.
+        /// </summary>
         [HttpGet("libre")]
 
         public IActionResult GetLibre([FromQuery] string dataOrdua)

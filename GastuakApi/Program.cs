@@ -42,78 +42,90 @@ builder.Services.AddSwaggerGen(c =>
     {
         Version = "v1",
         Title = "Jatetxea API - Inbentarioa",
-        Description = "Endpoints de la tabla Inbentarioa"
+        Description = "Inbentarioko produktuak eta stock mugimenduak kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("plateren_osagaiak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Plateren Osagaiak",
-        Description = "Endpoints de la tabla Plateren Osagaiak"
+        Description = "Plater bakoitzaren errezeta osagaiak kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("platerak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Platerak",
-        Description = "Endpoints de la tabla Platerak"
+        Description = "Kartako platerak eta erabilgarritasuna kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("zerbitzu_xehetasunak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Zerbitzu Xehetasunak",
-        Description = "Endpoints de la tabla Zerbitzu Xehetasunak"
+        Description = "Zerbitzu bateko plater lerroak eta zerbitzatuta egoera kudeatzeko endpointak."
     });
 
-    c.SwaggerDoc("kateoria", new OpenApiInfo
+    c.SwaggerDoc("kategoria", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Kategoria",
-        Description = "Endpoints de la tabla Kategoria"
+        Description = "Plateren kategoriak kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("zerbitzuak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Zerbitzuak",
-        Description = "Endpoints de la tabla Zerbitzuak"
+        Description = "Mahai edo erreserba bateko eskaerak kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("langileak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Langileak",
-        Description = "Endpoints de la tabla Langileak"
+        Description = "Langileak eta login eragiketa kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("rolak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Rolak",
-        Description = "Endpoints de la tabla Rolak"
+        Description = "Langileen rolak kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("mahaiak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Mahaiak",
-        Description = "Endpoints de la tabla Mahaiak"
+        Description = "Jatetxeko mahaiak eta erabilgarritasuna kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("erreserbak", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Erreserbak",
-        Description = "Endpoints de la tabla Erreserbak"
+        Description = "Erreserbak sortu, bilatu eta kudeatzeko endpointak."
     });
 
     c.SwaggerDoc("jatetxeko_info", new OpenApiInfo
     {
         Version = "v1",
         Title = "Jatetxea API - Jatetxeko Info",
-        Description = "Endpoints de la tabla Jatetxeko Info"
+        Description = "Jatetxearen datu orokorrak eta kaxa totala kudeatzeko endpointak."
     });
+
+    c.SwaggerDoc("deskontuak", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "Jatetxea API - Deskontuak",
+        Description = "Odoo datu-basetik deskontu kodeak balidatu eta aplikatzeko endpointak."
+    });
+
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
 
     c.DocInclusionPredicate((docName, apiDesc) =>
     {
@@ -134,7 +146,7 @@ builder.Services.AddSwaggerGen(c =>
         if (docName == "zerbitzu_xehetasunak" && controllerName.Contains("ZerbitzuXehetasunakController"))
             return true;
 
-        if (docName == "kateoria" && controllerName.Contains("KategoriaController"))
+        if (docName == "kategoria" && controllerName.Contains("KategoriaController"))
             return true;
 
         if (docName == "zerbitzuak" && controllerName.Contains("ZerbitzuakController"))
@@ -154,6 +166,9 @@ builder.Services.AddSwaggerGen(c =>
             return true;
 
         if (docName == "jatetxeko_info" && controllerName.Contains("JatetxekoInfoController"))
+            return true;
+
+        if (docName == "deskontuak" && controllerName.Contains("DeskontuakController"))
             return true;
 
         return false;
@@ -194,13 +209,14 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/plateren_osagaiak/swagger.json", "JatetxeaAPI/Plateren_Osagaiak");
         c.SwaggerEndpoint("/swagger/platerak/swagger.json", "JatetxeaAPI/Platerak");
         c.SwaggerEndpoint("/swagger/zerbitzu_xehetasunak/swagger.json", "JatetxeaAPI/Zerbitzu_Xehetasunak");
-        c.SwaggerEndpoint("/swagger/kateoria/swagger.json", "JatetxeaAPI/Kategoria");
+        c.SwaggerEndpoint("/swagger/kategoria/swagger.json", "JatetxeaAPI/Kategoria");
         c.SwaggerEndpoint("/swagger/zerbitzuak/swagger.json", "JatetxeaAPI/Zerbitzuak");
         c.SwaggerEndpoint("/swagger/langileak/swagger.json", "JatetxeaAPI/Langileak");
         c.SwaggerEndpoint("/swagger/rolak/swagger.json", "JatetxeaAPI/Rolak");
         c.SwaggerEndpoint("/swagger/mahaiak/swagger.json", "JatetxeaAPI/Mahaiak");
         c.SwaggerEndpoint("/swagger/erreserbak/swagger.json", "JatetxeaAPI/Erreserbak");
         c.SwaggerEndpoint("/swagger/jatetxeko_info/swagger.json", "JatetxeaAPI/Jatetxeko_Info");
+        c.SwaggerEndpoint("/swagger/deskontuak/swagger.json", "JatetxeaAPI/Deskontuak");
         c.RoutePrefix = "swagger";
     });
 }

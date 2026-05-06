@@ -58,7 +58,7 @@ namespace JatetxeaApi.Repositorioak
             tx.Commit();
         }
 
-        public IList<PlateraDisponibilitateaDto> GetDisponibilitatea()
+        public virtual IList<PlateraDisponibilitateaDto> GetDisponibilitatea()
         {
             using var session = NHibernateHelper.SessionFactory.OpenSession();
 

@@ -21,4 +21,11 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="APIServer\**\*.cs" />
+    <Content Remove="APIServer\**" />
+    <EmbeddedResource Remove="APIServer\**" />
+    <None Remove="APIServer\**" />
+  </ItemGroup>
+
 </Project>

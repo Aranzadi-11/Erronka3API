@@ -282,7 +282,7 @@ namespace JatetxeaApi.Repositorioak
             }
         }
 
-        public IList<Zerbitzuak> GetGaur()
+        public virtual IList<Zerbitzuak> GetGaur()
         {
             using var session = NHibernateHelper.SessionFactory.OpenSession();
 

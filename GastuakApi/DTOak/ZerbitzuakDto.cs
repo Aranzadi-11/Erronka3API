@@ -24,19 +24,6 @@ namespace JatetxeaApi.DTOak
         public decimal? Guztira { get; set; }
     }
 
-    public class ZerbitzuErroreaDto
-    {
-        public int PlateraId { get; set; }
-        public string PlateraIzena { get; set; } = "";
-    }
-
-    public class ZerbitzuaEmaitzaDto
-    {
-        public bool Ondo { get; set; }
-        public int? ZerbitzuaId { get; set; }
-        public List<ZerbitzuErroreaDto> Erroreak { get; set; } = new();
-    }
-
     public class PlateraEskariaDto
     {
         public int PlateraId { get; set; }

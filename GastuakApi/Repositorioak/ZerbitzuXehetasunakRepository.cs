@@ -54,7 +54,7 @@ namespace JatetxeaApi.Repositorioak
             tx.Commit();
         }
 
-        public IList<ZerbitzuXehetasunak> GetByZerbitzuaId(int zerbitzuaId)
+        public virtual IList<ZerbitzuXehetasunak> GetByZerbitzuaId(int zerbitzuaId)
         {
             using var session = NHibernateHelper.SessionFactory.OpenSession();
             return session.Query<ZerbitzuXehetasunak>()
@@ -63,7 +63,7 @@ namespace JatetxeaApi.Repositorioak
                 .ToList();
         }
 
-        public EragiketaEmaitzaDto AldatuZerbitzatutaEtaStock(int id, bool zerbitzatutaBerria)
+        public virtual EragiketaEmaitzaDto AldatuZerbitzatutaEtaStock(int id, bool zerbitzatutaBerria)
         {
             using var session = NHibernateHelper.SessionFactory.OpenSession();
             using var tx = session.BeginTransaction();

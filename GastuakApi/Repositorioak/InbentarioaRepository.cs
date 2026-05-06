@@ -56,7 +56,7 @@ namespace JatetxeaApi.Repositorioak
             tx.Commit();
         }
 
-        public EragiketaEmaitzaDto AldatuKantitatea(int id, int aldaketa)
+        public virtual EragiketaEmaitzaDto AldatuKantitatea(int id, int aldaketa)
         {
             using var session = NHibernateHelper.SessionFactory.OpenSession();
             using var tx = session.BeginTransaction();
